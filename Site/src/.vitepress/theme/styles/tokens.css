@@ -1,0 +1,351 @@
+/* ==========================================================================
+   CatsOnPlains Reader — Material 3 Expressive Flat Geometric Design System
+   Allowed shapes ONLY:
+     1. Pure rectangle: border-radius: 0
+     2. Pure circle: border-radius: 50% (width === height)
+     3. Pure pill (radius = 1/2 narrow edge): border-radius: 9999px
+   FORBIDDEN: Any medium border-radius, any box-shadow, drop-shadow, text-shadow.
+   SURFACE STRATEGY: Concentric uniform margins (--pane-pad: 12px), flat tonal
+   color blocks, low-saturation neutral backgrounds (#F6F1EA light / #332D27 dark).
+   ========================================================================== */
+
+:root {
+  --ease-nonlinear: cubic-bezier(0.22, 1, 0.36, 1);
+  --ease-expressive: cubic-bezier(0.34, 1.4, 0.64, 1);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+  --pane-pad: 12px;
+  --pane-gap: 8px;
+}
+
+:root,
+:root[data-theme='light'] {
+  color-scheme: light;
+
+  /* Surfaces — Bright low-saturation warm rice paper based on #F6F1EA */
+  --bg-base: #F6F1EA;
+  --bg-editor: #F6F1EA;
+  --bg-surface: #EFEAE2;
+  --bg-activity: #E7E1D8;
+  --bg-titlebar: #EAE4DC;
+  --bg-elevated: #FBF8F4;
+  --bg-chip: #E4DDD3;
+  --bg-hover: #E2DBD0;
+
+  /* Minimal structural separators */
+  --divider-hairline: #E0D9CE;
+  --divider-strong: #C9BFB1;
+
+  /* Ink / Typography */
+  --text-primary: #241F1A;
+  --text-secondary: #585047;
+  --text-muted: #847A6F;
+  --text-prose: #2A241E;
+
+  /* Primary Accent: #F87F04 & Derivatives */
+  --accent-primary: #F87F04;
+  --accent-primary-hover: #E37200;
+  --accent-primary-text: #C05D00;
+  --accent-primary-soft: #F4E2CD;
+  --accent-primary-mid: #F0CFA9;
+  --accent-primary-ink: #1F140A;
+
+  /* Secondary Accent: #20A4A4 & Derivatives */
+  --accent-secondary: #20A4A4;
+  --accent-secondary-hover: #188B8B;
+  --accent-secondary-text: #157B7B;
+  --accent-secondary-soft: #D9ECEB;
+  --accent-secondary-mid: #B8DFDE;
+  --accent-secondary-ink: #F8FBFB;
+
+  /* Status Bar */
+  --bg-statusbar: #E7E1D8;
+  --text-statusbar: #433B33;
+
+  /* WinUI Scrollbar & Sash Handle */
+  --scrollbar-thumb: #C4BBB0;
+  --sash-handle: #B5AA9C;
+}
+
+:root[data-theme='dark'] {
+  color-scheme: dark;
+
+  /* Surfaces — Warm charcoal based on #332D27 (low saturation) */
+  --bg-base: #332D27;
+  --bg-editor: #332D27;
+  --bg-surface: #2B2621;
+  --bg-activity: #231F1B;
+  --bg-titlebar: #26221E;
+  --bg-elevated: #3A332C;
+  --bg-chip: #39322C;
+  --bg-hover: #443C34;
+
+  /* Minimal structural separators */
+  --divider-hairline: #3C352E;
+  --divider-strong: #594F46;
+
+  /* Ink / Typography */
+  --text-primary: #EFE9E1;
+  --text-secondary: #B9AFA4;
+  --text-muted: #8D8277;
+  --text-prose: #E8E1D8;
+
+  /* Primary Accent: #F87F04 & Derivatives */
+  --accent-primary: #F87F04;
+  --accent-primary-hover: #FF9426;
+  --accent-primary-text: #FFA03D;
+  --accent-primary-soft: #483420;
+  --accent-primary-mid: #5F4121;
+  --accent-primary-ink: #1A1108;
+
+  /* Secondary Accent: #20A4A4 & Derivatives */
+  --accent-secondary: #20A4A4;
+  --accent-secondary-hover: #2CBABA;
+  --accent-secondary-text: #45CBCB;
+  --accent-secondary-soft: #223A39;
+  --accent-secondary-mid: #284C4B;
+  --accent-secondary-ink: #0B1F1F;
+
+  /* Status Bar */
+  --bg-statusbar: #231F1B;
+  --text-statusbar: #C8BEB3;
+
+  /* WinUI Scrollbar & Sash Handle */
+  --scrollbar-thumb: #5A5047;
+  --sash-handle: #6E6257;
+}
+
+/* Global Reset — Strictly Flat, Zero Shadows */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+  box-shadow: none !important;
+  text-shadow: none !important;
+}
+
+html,
+body,
+#app {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-base);
+  color: var(--text-primary);
+  font-family:
+    'PingFang SC',
+    'HarmonyOS Sans SC',
+    'Microsoft YaHei UI',
+    'Noto Sans SC',
+    -apple-system,
+    BlinkMacSystemFont,
+    'Segoe UI',
+    sans-serif;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  transition: background-color 0.22s var(--ease-standard), color 0.22s var(--ease-standard);
+}
+
+button,
+input {
+  font-family: inherit;
+  color: inherit;
+  outline: none;
+}
+
+button {
+  cursor: pointer;
+  border: none;
+  background: transparent;
+  padding: 0;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+/* Shape Utilities */
+.shape-rect {
+  border-radius: 0;
+}
+
+.shape-circle {
+  border-radius: 50%;
+}
+
+.shape-pill {
+  border-radius: 9999px;
+}
+
+/* Accessible focus highlight — ONLY for keyboard navigation (:focus-visible)
+   and NEVER on inner naked <input> inside styled pill containers! */
+button:focus-visible,
+a:focus-visible {
+  outline: 2px solid var(--accent-primary);
+  outline-offset: -2px;
+}
+
+input:focus,
+input:focus-visible {
+  outline: none;
+}
+
+/* Expressive Panel & Content Transitions */
+.panel-fade-enter-active,
+.panel-fade-leave-active {
+  transition: opacity 0.14s var(--ease-standard), transform 0.18s var(--ease-standard);
+}
+
+.panel-fade-enter-from {
+  opacity: 0;
+  transform: translateY(5px);
+}
+
+.panel-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-3px);
+}
+
+.doc-fade-enter-active,
+.doc-fade-leave-active {
+  transition: opacity 0.16s var(--ease-standard), transform 0.2s var(--ease-standard);
+}
+
+.doc-fade-enter-from {
+  opacity: 0;
+  transform: translateY(6px);
+}
+
+.doc-fade-leave-to {
+  opacity: 0;
+  transform: translateY(-3px);
+}
+
+/* Reader Markdown Prose Styling */
+.reader-prose {
+  color: var(--text-prose);
+  font-size: var(--reader-font-size, 18px);
+  line-height: var(--reader-line-height, 1.95);
+  letter-spacing: 0.02em;
+  word-break: break-word;
+}
+
+.reader-prose.font-serif {
+  font-family:
+    'Noto Serif SC',
+    'Source Han Serif SC',
+    'Songti SC',
+    'STSong',
+    'SimSun',
+    Georgia,
+    serif;
+}
+
+.reader-prose.font-sans {
+  font-family:
+    'PingFang SC',
+    'HarmonyOS Sans SC',
+    'Microsoft YaHei UI',
+    'Noto Sans SC',
+    sans-serif;
+}
+
+.reader-prose h1 {
+  margin: 0 0 1.4em 0;
+  padding-bottom: 0.55em;
+  font-size: 1.75em;
+  font-weight: 800;
+  line-height: 1.35;
+  color: var(--text-primary);
+  border-bottom: 3px solid var(--accent-primary);
+  letter-spacing: 0.04em;
+}
+
+.reader-prose h2 {
+  margin: 2.4em 0 1.1em 0;
+  padding: 0.4em 0.9em;
+  font-size: 1.3em;
+  font-weight: 700;
+  line-height: 1.4;
+  color: var(--text-primary);
+  border-left: 4px solid var(--accent-primary);
+  background-color: var(--accent-primary-soft);
+  scroll-margin-top: 24px;
+}
+
+.reader-prose h2 .header-anchor,
+.reader-prose h1 .header-anchor,
+.reader-prose h3 .header-anchor {
+  display: none;
+}
+
+.reader-prose h3 {
+  margin: 1.8em 0 0.8em 0;
+  font-size: 1.12em;
+  font-weight: 700;
+  color: var(--accent-secondary-text);
+}
+
+.reader-prose p {
+  margin: 0 0 1.15em 0;
+  text-indent: 2em;
+  text-align: justify;
+  transition: background-color 0.35s var(--ease-standard);
+}
+
+.reader-prose p.search-hit-pulse {
+  background-color: var(--accent-primary-mid);
+  padding: 4px 8px;
+  margin-left: -8px;
+  margin-right: -8px;
+}
+
+.reader-prose blockquote {
+  margin: 1.5em 0;
+  padding: 0.9em 1.25em;
+  border-left: 4px solid var(--accent-secondary);
+  background-color: var(--accent-secondary-soft);
+  color: var(--text-secondary);
+  border-radius: 0;
+}
+
+.reader-prose blockquote p {
+  text-indent: 0;
+  margin-bottom: 0.5em;
+}
+
+.reader-prose blockquote p:last-child {
+  margin-bottom: 0;
+}
+
+.reader-prose hr {
+  border: none;
+  height: 2px;
+  background-color: var(--bg-chip);
+  margin: 2.2em auto;
+  width: 40%;
+}
+
+.reader-prose strong {
+  color: var(--text-primary);
+  font-weight: 700;
+}
+
+.reader-prose em {
+  color: var(--accent-primary-text);
+}
+
+.reader-prose code {
+  padding: 0.12em 0.5em;
+  background-color: var(--bg-surface);
+  border-radius: 0;
+  font-family: 'Cascadia Code', 'JetBrains Mono', 'Consolas', monospace;
+  font-size: 0.88em;
+}
+
+.reader-prose ::selection {
+  background-color: var(--accent-primary);
+  color: var(--accent-primary-ink);
+}

@@ -1,0 +1,7 @@
+node_modules
+src/.vitepress/cache
+src/.vitepress/dist
+src/chapters
+src/.vitepress/data/novel-manifest.ts
+src/.vitepress/data/novel-search-index.ts
+.DS_Store

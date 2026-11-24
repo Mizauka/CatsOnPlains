@@ -1,0 +1,22 @@
+{
+  "name": "cats-on-plains-reader",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "sync": "node scripts/sync-novel.mjs",
+    "dev": "node scripts/sync-novel.mjs && vitepress dev src",
+    "build": "node scripts/sync-novel.mjs && vitepress build src",
+    "preview": "vitepress preview src",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "vue": "^3.5.13"
+  },
+  "devDependencies": {
+    "typescript": "^5.7.3",
+    "vite": "^6.0.0",
+    "vitepress": "^1.6.3",
+    "vue-tsc": "^2.2.0"
+  }
+}
