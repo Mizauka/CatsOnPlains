@@ -1,11 +1,15 @@
 <script setup lang="ts">
-import { ref, computed, watch, nextTick, onMounted } from 'vue'
+import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { Content } from 'vitepress'
 import TabBar from './TabBar.vue'
 import IconGlyph from './IconGlyph.vue'
 import CustomScrollArea from './CustomScrollArea.vue'
 import SlidingSegmentedControl, { type SegmentOption } from './SlidingSegmentedControl.vue'
-import { useWorkbenchState, type ReaderWidthPreset } from '../composables/useWorkbenchState'
+import {
+  useWorkbenchState,
+  WIDTH_PRESET_PX,
+  type ReaderWidthPreset,
+} from '../composables/useWorkbenchState'
 
 const widthOptions: SegmentOption<ReaderWidthPreset>[] = [
   { value: 'narrow', label: '窄', title: '窄版心 (640px)' },
@@ -26,11 +30,18 @@ const {
   pendingParagraphJump,
   openDoc,
   setWidthPreset,
+  registerWidthTransition,
   saveScrollPosition,
   getScrollPosition,
+  setReadingProgressForPath,
 } = useWorkbenchState()
 
 const scrollAreaRef = ref<InstanceType<typeof CustomScrollArea> | null>(null)
+const isWidthMorphing = ref(false)
+
+// Lock preventing outgoing chapter's scroll/metrics events from polluting the incoming chapter!
+let isSwappingDoc = false
+let mountedDocPath: string | null = null
 
 function getScroller(): HTMLElement | null {
   return scrollAreaRef.value?.getViewport() ?? null
@@ -40,68 +51,45 @@ const firstScenePath = computed(() => {
   return manifest.readingSequence[0] ?? manifest.chapters[0]?.fullPath ?? null
 })
 
-const maxWidthStyle = computed(() => {
-  const map: Record<ReaderWidthPreset, string> = {
-    narrow: '640px',
-    standard: '780px',
-    wide: '960px',
-  }
-  return map[widthPreset.value]
-})
+const maxWidthStyle = computed(() => `${WIDTH_PRESET_PX[widthPreset.value]}px`)
 
-function updateReadingProgress(el?: HTMLElement | null) {
-  const vp = el ?? getScroller()
-  if (!vp || !activeDoc.value) {
-    readingProgress.value = 0
-    return
-  }
+function computeAndRecordProgress(path: string, vp: HTMLElement) {
   const article = vp.querySelector<HTMLElement>('.reader-article')
   if (!article || article.offsetHeight === 0) {
-    readingProgress.value = 0
+    setReadingProgressForPath(path, 0)
     return
   }
   const maxScroll = vp.scrollHeight - vp.clientHeight
   if (maxScroll <= 1) {
-    // Only report 100% if a short chapter actually rendered and fits completely in viewport
     const prose = article.querySelector<HTMLElement>('.reader-prose')
     const hasText = Boolean(prose && prose.textContent && prose.textContent.trim().length > 0)
-    readingProgress.value = hasText && vp.scrollTop === 0 ? 0 : hasText ? 100 : 0
+    const pct = hasText && vp.scrollTop === 0 ? 0 : hasText ? 100 : 0
+    setReadingProgressForPath(path, pct)
   } else {
-    readingProgress.value = Math.min(100, Math.max(0, (vp.scrollTop / maxScroll) * 100))
+    const pct = Math.min(100, Math.max(0, (vp.scrollTop / maxScroll) * 100))
+    setReadingProgressForPath(path, pct)
   }
-  saveScrollPosition(currentRoutePath.value, vp.scrollTop)
+  saveScrollPosition(path, vp.scrollTop)
 }
 
-function restoreAfterDocMounted() {
-  nextTick(() => {
-    requestAnimationFrame(() => {
-      const vp = getScroller()
-      if (!vp) return
-      if (performPendingParagraphJump()) {
-        scrollAreaRef.value?.syncMetrics()
-        updateReadingProgress(vp)
-        return
-      }
-      const saved = getScrollPosition(currentRoutePath.value)
-      vp.scrollTop = saved
-      scrollAreaRef.value?.syncMetrics()
-      updateReadingProgress(vp)
-    })
-  })
+function updateReadingProgress(el?: HTMLElement | null) {
+  if (isSwappingDoc) return
+  const vp = el ?? getScroller()
+  if (!vp || !activeDoc.value) return
+  // Strictly ensure the DOM currently mounted belongs to currentRoutePath
+  if (mountedDocPath !== currentRoutePath.value) return
+  computeAndRecordProgress(currentRoutePath.value, vp)
 }
-
-onMounted(() => {
-  restoreAfterDocMounted()
-})
 
 function saveCurrentScroll() {
+  if (isSwappingDoc) return
   const vp = getScroller()
-  if (vp && activeDoc.value) {
-    saveScrollPosition(currentRoutePath.value, vp.scrollTop)
+  if (vp && activeDoc.value && mountedDocPath === currentRoutePath.value) {
+    computeAndRecordProgress(currentRoutePath.value, vp)
   }
 }
 
-function performPendingParagraphJump(): boolean {
+function performPendingParagraphJump(instant = false): boolean {
   const jump = pendingParagraphJump.value
   if (!jump || jump.path !== currentRoutePath.value) return false
   const vp = getScroller()
@@ -113,7 +101,7 @@ function performPendingParagraphJump(): boolean {
 
   if (!target) return false
 
-  target.scrollIntoView({ behavior: 'smooth', block: 'center' })
+  target.scrollIntoView({ behavior: instant ? 'auto' : 'smooth', block: 'center' })
   target.classList.remove('search-hit-pulse')
   void target.offsetWidth
   target.classList.add('search-hit-pulse')
@@ -123,15 +111,122 @@ function performPendingParagraphJump(): boolean {
   return true
 }
 
+function restoreScrollSync(targetPath: string, instantJump = false) {
+  if (targetPath !== currentRoutePath.value) return
+  const vp = getScroller()
+  mountedDocPath = targetPath
+  isSwappingDoc = false
+  if (!vp) return
+
+  if (performPendingParagraphJump(instantJump)) {
+    scrollAreaRef.value?.syncMetrics()
+    computeAndRecordProgress(targetPath, vp)
+    return
+  }
+
+  const saved = getScrollPosition(targetPath)
+  vp.scrollTop = saved
+  scrollAreaRef.value?.syncMetrics()
+  computeAndRecordProgress(targetPath, vp)
+}
+
+function onDocEnter() {
+  // Runs synchronously right as the new <article> is mounted (at opacity: 0, before first paint!)
+  // so vp.scrollTop & scrollbar thumb are already in exact position on frame 0 — zero delayed jump!
+  restoreScrollSync(currentRoutePath.value, true)
+}
+
+// KDE / Win11-style Snapshot Clip + Crossfade Transition for Column Width (Zero Text Reflow Flicker!)
+function handleWidthTransition(nextPreset: ReaderWidthPreset, commit: () => void) {
+  const vp = getScroller()
+  const canTransition =
+    typeof document !== 'undefined' && typeof document.startViewTransition === 'function'
+  const reducedMotion =
+    typeof window !== 'undefined' &&
+    window.matchMedia &&
+    window.matchMedia('(prefers-reduced-motion: reduce)').matches
+
+  if (!vp || !activeDoc.value || !canTransition || reducedMotion) {
+    commit()
+    nextTick(() => {
+      scrollAreaRef.value?.syncMetrics()
+      updateReadingProgress(vp)
+    })
+    return
+  }
+
+  // 1. Capture the current reading paragraph anchor so user never loses their reading line
+  const vpRect = vp.getBoundingClientRect()
+  const paragraphs = Array.from(vp.querySelectorAll<HTMLElement>('.reader-prose p'))
+  let anchorIndex = -1
+  let anchorDeltaY = 0
+  for (let i = 0; i < paragraphs.length; i++) {
+    const r = paragraphs[i].getBoundingClientRect()
+    if (r.bottom > vpRect.top + 12) {
+      anchorIndex = i
+      anchorDeltaY = r.top - vpRect.top
+      break
+    }
+  }
+
+  // 2. Compute exact horizontal clip-path insets for old width -> new width inside viewport
+  const oldW = Math.min(vpRect.width, WIDTH_PRESET_PX[widthPreset.value])
+  const newW = Math.min(vpRect.width, WIDTH_PRESET_PX[nextPreset])
+  const fromInset = Math.max(0, Math.round((vpRect.width - oldW) / 2))
+  const toInset = Math.max(0, Math.round((vpRect.width - newW) / 2))
+
+  const root = document.documentElement
+  root.style.setProperty('--width-inset-from', `${fromInset}px`)
+  root.style.setProperty('--width-inset-to', `${toInset}px`)
+  root.dataset.vtKind = 'width'
+  isWidthMorphing.value = true
+
+  // Wait one micro-tick so view-transition-name: reader-column is active before snapshot capture
+  nextTick(() => {
+    const transition = document.startViewTransition(async () => {
+      commit()
+      await nextTick()
+      // Restore reading anchor paragraph position in the new layout before new snapshot is captured
+      if (anchorIndex >= 0) {
+        const nextParas = vp.querySelectorAll<HTMLElement>('.reader-prose p')
+        const anchorEl = nextParas[anchorIndex]
+        if (anchorEl) {
+          const newVpTop = vp.getBoundingClientRect().top
+          const newAnchorTop = anchorEl.getBoundingClientRect().top
+          vp.scrollTop += newAnchorTop - (newVpTop + anchorDeltaY)
+        }
+      }
+      scrollAreaRef.value?.syncMetrics()
+      updateReadingProgress(vp)
+    })
+
+    transition.finished.finally(() => {
+      isWidthMorphing.value = false
+      if (root.dataset.vtKind === 'width') {
+        delete root.dataset.vtKind
+      }
+    })
+  })
+}
+
+onMounted(() => {
+  registerWidthTransition(handleWidthTransition)
+  restoreScrollSync(currentRoutePath.value, true)
+})
+
+onBeforeUnmount(() => {
+  registerWidthTransition(null)
+})
+
 watch(currentRoutePath, (nextPath, prevPath) => {
+  if (nextPath === prevPath) return
   const prevVp = getScroller()
-  if (prevPath && prevVp) {
-    saveScrollPosition(prevPath, prevVp.scrollTop)
+  if (prevPath && prevVp && mountedDocPath === prevPath) {
+    computeAndRecordProgress(prevPath, prevVp)
   }
-  // Reset immediately while out-in transition swaps DOM, then restore in onDocAfterEnter
-  if (nextPath !== prevPath) {
-    readingProgress.value = 0
-  }
+  // Lock progress writes while out-in transition swaps old & new article DOM
+  isSwappingDoc = true
+  mountedDocPath = null
 })
 
 watch(
@@ -139,6 +234,7 @@ watch(
   async () => {
     if (!pendingParagraphJump.value) return
     if (pendingParagraphJump.value.path !== currentRoutePath.value) return
+    if (isSwappingDoc) return
     await nextTick()
     requestAnimationFrame(() => {
       performPendingParagraphJump()
@@ -159,9 +255,10 @@ function scrollToHeading(headingId: string) {
   }
 }
 
-function navigateTo(path: string) {
+function navigatePager(path: string) {
   saveCurrentScroll()
-  openDoc(path)
+  // Pager ("上一节 / 下一节") always starts cleanly at the top of the target scene
+  openDoc(path, undefined, { resetScroll: true })
 }
 
 defineExpose({
@@ -201,19 +298,20 @@ defineExpose({
       </div>
     </div>
 
-    <!-- Sharp 3px Reading Progress Bar -->
+    <!-- Sharp 3px Reading Progress Bar (Per-Scene Independent) -->
     <div v-if="activeDoc" class="progress-track shape-rect">
       <div class="progress-fill shape-rect" :style="{ width: `${readingProgress}%` }" />
     </div>
 
-    <!-- Scrollable Reader Canvas with WinUI Animated Scrollbar (Symmetric Concentric Margins) -->
+    <!-- Scrollable Reader Canvas with WinUI Animated Scrollbar -->
     <CustomScrollArea
       ref="scrollAreaRef"
       class="reader-scroll"
+      :class="{ 'vt-width-target': isWidthMorphing }"
       @scroll="updateReadingProgress"
       @metrics-change="updateReadingProgress"
     >
-      <Transition name="doc-fade" mode="out-in" @after-enter="restoreAfterDocMounted">
+      <Transition name="doc-fade" mode="out-in" @enter="onDocEnter">
         <article
           v-if="activeDoc"
           :key="activeDoc.path"
@@ -240,7 +338,7 @@ defineExpose({
             <button
               v-if="adjacentDocs.prev"
               class="pager-btn prev shape-pill"
-              @click="navigateTo(adjacentDocs.prev.path)"
+              @click="navigatePager(adjacentDocs.prev.path)"
             >
               <IconGlyph name="arrow-left" :size="14" />
               <span class="pager-text">
@@ -253,7 +351,7 @@ defineExpose({
             <button
               v-if="adjacentDocs.next"
               class="pager-btn next shape-pill"
-              @click="navigateTo(adjacentDocs.next.path)"
+              @click="navigatePager(adjacentDocs.next.path)"
             >
               <span class="pager-text align-right">
                 <small>下一节</small>
@@ -264,7 +362,7 @@ defineExpose({
           </nav>
         </article>
 
-        <!-- Minimal Flat Empty State (Only shown if all tabs are closed) -->
+        <!-- Minimal Flat Empty State -->
         <div v-else key="empty-editor" class="empty-editor">
           <div class="empty-mark" aria-hidden="true">
             <span class="mark-lg shape-circle" />
@@ -275,7 +373,7 @@ defineExpose({
           <button
             v-if="firstScenePath"
             class="empty-cta shape-pill"
-            @click="openDoc(firstScenePath)"
+            @click="openDoc(firstScenePath, undefined, { resetScroll: true })"
           >
             <span>打开第0章 · 幕1 放出</span>
             <IconGlyph name="arrow-right" :size="14" />
@@ -379,8 +477,13 @@ defineExpose({
   min-height: 0;
 }
 
-/* Concentric 36px horizontal padding — identical left & right, zero scrollbar jump */
+.reader-scroll.vt-width-target {
+  view-transition-name: reader-column;
+}
+
+/* No live max-width transition — width changes use KDE/Win11 snapshot clip + crossfade! */
 .reader-article {
+  width: 100%;
   margin: 0 auto;
   padding: 34px 36px 84px 36px;
 }

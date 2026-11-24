@@ -4,7 +4,13 @@ import CustomScrollArea from './CustomScrollArea.vue'
 import { useThemeMode } from '../composables/useThemeMode'
 import { useWorkbenchState } from '../composables/useWorkbenchState'
 
-const { themePreference, resolvedTheme, setThemePreference } = useThemeMode()
+const {
+  themePreference,
+  resolvedTheme,
+  accentScheme,
+  setThemePreference,
+  setAccentScheme,
+} = useThemeMode()
 const {
   fontSize,
   lineHeight,
@@ -34,30 +40,56 @@ const {
           <div class="item-head">
             <span class="item-label">外观模式</span>
             <span class="item-meta">
-              {{ resolvedTheme === 'light' ? '#F6F1EA' : '#332D27' }}
+              {{ resolvedTheme === 'light' ? '#FAF7F2' : '#273033' }}
             </span>
           </div>
           <div class="seg-row three">
             <button
               class="seg-option"
               :class="{ active: themePreference === 'system' }"
-              @click="setThemePreference('system')"
+              @click="setThemePreference('system', $event)"
             >
               跟随系统
             </button>
             <button
               class="seg-option"
               :class="{ active: themePreference === 'light' }"
-              @click="setThemePreference('light')"
+              @click="setThemePreference('light', $event)"
             >
               亮色
             </button>
             <button
               class="seg-option"
               :class="{ active: themePreference === 'dark' }"
-              @click="setThemePreference('dark')"
+              @click="setThemePreference('dark', $event)"
             >
               暗色
+            </button>
+          </div>
+        </section>
+
+        <!-- Accent Swap Toggle -->
+        <section class="setting-item">
+          <div class="item-head">
+            <span class="item-label">主题色对调</span>
+            <span class="item-meta">
+              {{ accentScheme === 'default' ? '主橘 #F87F04 · 辅青 #20A4A4' : '主青 #20A4A4 · 辅橘 #F87F04' }}
+            </span>
+          </div>
+          <div class="seg-row">
+            <button
+              class="seg-option"
+              :class="{ active: accentScheme === 'default' }"
+              @click="setAccentScheme('default', $event)"
+            >
+              默认（橘 / 青）
+            </button>
+            <button
+              class="seg-option"
+              :class="{ active: accentScheme === 'swapped' }"
+              @click="setAccentScheme('swapped', $event)"
+            >
+              对调（青 / 橘）
             </button>
           </div>
         </section>

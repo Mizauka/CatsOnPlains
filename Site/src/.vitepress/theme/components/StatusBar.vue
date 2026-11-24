@@ -14,7 +14,7 @@ const {
 } = useWorkbenchState()
 
 const themeStatusLabel = computed(() => {
-  const hex = resolvedTheme.value === 'light' ? '亮色 #F6F1EA' : '暗色 #332D27'
+  const hex = resolvedTheme.value === 'light' ? '亮色 #FAF7F2' : '暗色 #273033'
   return themePreference.value === 'system' ? `跟随系统 · ${hex}` : hex
 })
 </script>

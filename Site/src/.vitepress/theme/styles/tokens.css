@@ -3,10 +3,8 @@
    Allowed shapes ONLY:
      1. Pure rectangle: border-radius: 0
      2. Pure circle: border-radius: 50% (width === height)
-     3. Pure pill (radius = 1/2 narrow edge): border-radius: 9999px
+     3. Pure pill (radius = 1/2 narrow edge): border-radius: 9999px / calc(h/2)
    FORBIDDEN: Any medium border-radius, any box-shadow, drop-shadow, text-shadow.
-   SURFACE STRATEGY: Concentric uniform margins (--pane-pad: 12px), flat tonal
-   color blocks, low-saturation neutral backgrounds (#F6F1EA light / #332D27 dark).
    ========================================================================== */
 
 :root {
@@ -21,97 +19,199 @@
 :root[data-theme='light'] {
   color-scheme: light;
 
-  /* Surfaces — Bright low-saturation warm rice paper based on #F6F1EA */
-  --bg-base: #F6F1EA;
-  --bg-editor: #F6F1EA;
-  --bg-surface: #EFEAE2;
-  --bg-activity: #E7E1D8;
-  --bg-titlebar: #EAE4DC;
-  --bg-elevated: #FBF8F4;
-  --bg-chip: #E4DDD3;
-  --bg-hover: #E2DBD0;
+  /* Surfaces — Brighter subtle warm off-white (#FAF7F2) */
+  --bg-base: #FAF7F2;
+  --bg-editor: #FAF7F2;
+  --bg-surface: #F3EFE8;
+  --bg-activity: #ECE7DF;
+  --bg-titlebar: #F0EBE3;
+  --bg-elevated: #FFFDF9;
+  --bg-chip: #EAE4DB;
+  --bg-hover: #E4DED4;
 
   /* Minimal structural separators */
-  --divider-hairline: #E0D9CE;
-  --divider-strong: #C9BFB1;
+  --divider-hairline: #E5DFD6;
+  --divider-strong: #D3CBC0;
 
   /* Ink / Typography */
-  --text-primary: #241F1A;
-  --text-secondary: #585047;
-  --text-muted: #847A6F;
-  --text-prose: #2A241E;
+  --text-primary: #221E1A;
+  --text-secondary: #575049;
+  --text-muted: #857D73;
+  --text-prose: #28231E;
 
-  /* Primary Accent: #F87F04 & Derivatives */
+  /* Default Light Accents: Primary Orange #F87F04, Secondary Teal #20A4A4 */
   --accent-primary: #F87F04;
   --accent-primary-hover: #E37200;
   --accent-primary-text: #C05D00;
-  --accent-primary-soft: #F4E2CD;
-  --accent-primary-mid: #F0CFA9;
+  --accent-primary-soft: #FBE8D3;
+  --accent-primary-mid: #F6D4AE;
   --accent-primary-ink: #1F140A;
 
-  /* Secondary Accent: #20A4A4 & Derivatives */
   --accent-secondary: #20A4A4;
   --accent-secondary-hover: #188B8B;
-  --accent-secondary-text: #157B7B;
-  --accent-secondary-soft: #D9ECEB;
-  --accent-secondary-mid: #B8DFDE;
-  --accent-secondary-ink: #F8FBFB;
+  --accent-secondary-text: #137474;
+  --accent-secondary-soft: #DDF0F0;
+  --accent-secondary-mid: #BEE3E3;
+  --accent-secondary-ink: #FAFDFD;
 
   /* Status Bar */
-  --bg-statusbar: #E7E1D8;
-  --text-statusbar: #433B33;
+  --bg-statusbar: #ECE7DF;
+  --text-statusbar: #433D36;
 
   /* WinUI Scrollbar & Sash Handle */
-  --scrollbar-thumb: #C4BBB0;
-  --sash-handle: #B5AA9C;
+  --scrollbar-thumb: #C8C0B5;
+  --sash-handle: #B9B0A4;
+}
+
+/* Light Mode — Swapped Accent Scheme (Primary Teal #20A4A4, Secondary Orange #F87F04) */
+:root[data-theme='light'][data-accent='swapped'],
+:root[data-accent='swapped']:not([data-theme='dark']) {
+  --accent-primary: #20A4A4;
+  --accent-primary-hover: #188B8B;
+  --accent-primary-text: #137474;
+  --accent-primary-soft: #DDF0F0;
+  --accent-primary-mid: #BEE3E3;
+  --accent-primary-ink: #FAFDFD;
+
+  --accent-secondary: #F87F04;
+  --accent-secondary-hover: #DF6F00;
+  --accent-secondary-text: #C05D00;
+  --accent-secondary-soft: #FBE8D3;
+  --accent-secondary-mid: #F6D4AE;
+  --accent-secondary-ink: #1F140A;
 }
 
 :root[data-theme='dark'] {
   color-scheme: dark;
 
-  /* Surfaces — Warm charcoal based on #332D27 (low saturation) */
-  --bg-base: #332D27;
-  --bg-editor: #332D27;
-  --bg-surface: #2B2621;
-  --bg-activity: #231F1B;
-  --bg-titlebar: #26221E;
-  --bg-elevated: #3A332C;
-  --bg-chip: #39322C;
-  --bg-hover: #443C34;
+  /* Surfaces — Deep cool slate charcoal based on #273033 */
+  --bg-base: #273033;
+  --bg-editor: #273033;
+  --bg-surface: #20282B;
+  --bg-activity: #1A2124;
+  --bg-titlebar: #1D2427;
+  --bg-elevated: #2F3A3E;
+  --bg-chip: #313C40;
+  --bg-hover: #384449;
 
   /* Minimal structural separators */
-  --divider-hairline: #3C352E;
-  --divider-strong: #594F46;
+  --divider-hairline: #323D41;
+  --divider-strong: #47555B;
 
   /* Ink / Typography */
-  --text-primary: #EFE9E1;
-  --text-secondary: #B9AFA4;
-  --text-muted: #8D8277;
-  --text-prose: #E8E1D8;
+  --text-primary: #EBF0F2;
+  --text-secondary: #B0BEC3;
+  --text-muted: #7F9096;
+  --text-prose: #E3EAEC;
 
-  /* Primary Accent: #F87F04 & Derivatives */
+  /* Default Dark Accents: Primary Orange #F87F04, Secondary Teal #20A4A4 */
   --accent-primary: #F87F04;
   --accent-primary-hover: #FF9426;
   --accent-primary-text: #FFA03D;
-  --accent-primary-soft: #483420;
-  --accent-primary-mid: #5F4121;
+  --accent-primary-soft: #413022;
+  --accent-primary-mid: #593D22;
   --accent-primary-ink: #1A1108;
 
-  /* Secondary Accent: #20A4A4 & Derivatives */
   --accent-secondary: #20A4A4;
   --accent-secondary-hover: #2CBABA;
-  --accent-secondary-text: #45CBCB;
-  --accent-secondary-soft: #223A39;
-  --accent-secondary-mid: #284C4B;
-  --accent-secondary-ink: #0B1F1F;
+  --accent-secondary-text: #46D1D1;
+  --accent-secondary-soft: #1B3B3E;
+  --accent-secondary-mid: #214D51;
+  --accent-secondary-ink: #091E1F;
 
   /* Status Bar */
-  --bg-statusbar: #231F1B;
-  --text-statusbar: #C8BEB3;
+  --bg-statusbar: #1A2124;
+  --text-statusbar: #BAC7CC;
 
   /* WinUI Scrollbar & Sash Handle */
-  --scrollbar-thumb: #5A5047;
-  --sash-handle: #6E6257;
+  --scrollbar-thumb: #4D5B61;
+  --sash-handle: #607178;
+}
+
+/* Dark Mode — Swapped Accent Scheme (Primary Teal #20A4A4, Secondary Orange #F87F04) */
+:root[data-theme='dark'][data-accent='swapped'] {
+  --accent-primary: #20A4A4;
+  --accent-primary-hover: #2CBABA;
+  --accent-primary-text: #46D1D1;
+  --accent-primary-soft: #1B3B3E;
+  --accent-primary-mid: #214D51;
+  --accent-primary-ink: #091E1F;
+
+  --accent-secondary: #F87F04;
+  --accent-secondary-hover: #FF9426;
+  --accent-secondary-text: #FFA03D;
+  --accent-secondary-soft: #413022;
+  --accent-secondary-mid: #593D22;
+  --accent-secondary-ink: #1A1108;
+}
+
+/* Scoped View Transitions: Theme/Accent Ripple vs Reader Column Width Snapshot Morph */
+:root[data-vt-kind='ripple']::view-transition-group(root) {
+  animation: none;
+}
+
+:root[data-vt-kind='ripple']::view-transition-old(root) {
+  animation: none;
+  mix-blend-mode: normal;
+  z-index: 1;
+}
+
+:root[data-vt-kind='ripple']::view-transition-new(root) {
+  mix-blend-mode: normal;
+  z-index: 9999;
+  animation: theme-ripple-expand 480ms cubic-bezier(0.64, 0, 0.78, 0) both;
+}
+
+@keyframes theme-ripple-expand {
+  from {
+    clip-path: circle(0px at var(--ripple-x, 50%) var(--ripple-y, 50%));
+  }
+  to {
+    clip-path: circle(var(--ripple-r, 150vmax) at var(--ripple-x, 50%) var(--ripple-y, 50%));
+  }
+}
+
+/* KDE / Win11-style Snapshot Clip + Crossfade for Reader Column Width */
+:root[data-vt-kind='width']::view-transition-group(root),
+:root[data-vt-kind='width']::view-transition-old(root),
+:root[data-vt-kind='width']::view-transition-new(root) {
+  animation: none;
+}
+
+:root[data-vt-kind='width']::view-transition-group(reader-column) {
+  animation: none;
+}
+
+:root[data-vt-kind='width']::view-transition-old(reader-column) {
+  mix-blend-mode: normal;
+  animation: reader-width-old 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+:root[data-vt-kind='width']::view-transition-new(reader-column) {
+  mix-blend-mode: normal;
+  animation: reader-width-new 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+}
+
+@keyframes reader-width-old {
+  from {
+    opacity: 1;
+    clip-path: inset(0px var(--width-inset-from, 0px) 0px var(--width-inset-from, 0px));
+  }
+  to {
+    opacity: 0;
+    clip-path: inset(0px var(--width-inset-to, 0px) 0px var(--width-inset-to, 0px));
+  }
+}
+
+@keyframes reader-width-new {
+  from {
+    opacity: 0;
+    clip-path: inset(0px var(--width-inset-from, 0px) 0px var(--width-inset-from, 0px));
+  }
+  to {
+    opacity: 1;
+    clip-path: inset(0px var(--width-inset-to, 0px) 0px var(--width-inset-to, 0px));
+  }
 }
 
 /* Global Reset — Strictly Flat, Zero Shadows */
@@ -144,7 +244,6 @@ body,
     sans-serif;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  transition: background-color 0.22s var(--ease-standard), color 0.22s var(--ease-standard);
 }
 
 button,

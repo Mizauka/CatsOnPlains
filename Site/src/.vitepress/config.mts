@@ -16,6 +16,8 @@ export default defineConfig({
           const prefersDark = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches;
           const resolved = pref === 'dark' || pref === 'light' ? pref : (prefersDark ? 'dark' : 'light');
           document.documentElement.dataset.theme = resolved;
+          const accent = localStorage.getItem('cop-accent-scheme');
+          document.documentElement.dataset.accent = accent === 'swapped' ? 'swapped' : 'default';
         } catch {}
       })();`,
     ],

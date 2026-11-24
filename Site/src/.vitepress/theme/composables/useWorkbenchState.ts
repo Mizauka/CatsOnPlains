@@ -31,6 +31,12 @@ export const DEFAULT_RIGHT_WIDTH = 288
 export const MIN_LEFT_WIDTH = 252
 export const MIN_RIGHT_WIDTH = 224
 
+export const WIDTH_PRESET_PX: Record<ReaderWidthPreset, number> = {
+  narrow: 640,
+  standard: 780,
+  wide: 960,
+}
+
 export function normalizeRoutePath(raw: string): string {
   let p = raw.split('?')[0].split('#')[0]
   if (p.endsWith('.html')) {
@@ -70,8 +76,12 @@ const lineHeight = ref(1.95)
 const fontFamily = ref<ReaderFontFamily>('serif')
 const widthPreset = ref<ReaderWidthPreset>('standard')
 
+// Strictly per-path scroll position & reading progress (never shared/overwritten across tabs!)
 const scrollPositions = new Map<string, number>()
-const readingProgress = ref(0)
+const progressByPath = ref<Record<string, number>>({})
+
+type WidthTransitionHandler = (next: ReaderWidthPreset, commit: () => void) => void
+let widthTransitionHandler: WidthTransitionHandler | null = null
 
 let hydrated = false
 let jumpNonce = 0
@@ -165,6 +175,11 @@ export function useWorkbenchState() {
     return allDocsByPath[currentRoutePath.value] ?? null
   })
 
+  // Computed strictly from current route's independent progress entry
+  const readingProgress = computed<number>(() => {
+    return progressByPath.value[currentRoutePath.value] ?? 0
+  })
+
   const openTabs = computed<NovelDocItem[]>(() => {
     return openTabPaths.value
       .map((p) => allDocsByPath[p])
@@ -202,7 +217,6 @@ export function useWorkbenchState() {
     if (allDocsByPath[path]) {
       syncRouteToTabs(path)
     } else if (path === '/') {
-      // No redundant Home page: auto-open last read doc or first scene on initial entry
       const fallback =
         (lastActiveDocPath.value && allDocsByPath[lastActiveDocPath.value] ? lastActiveDocPath.value : null) ??
         novelManifest.readingSequence[0] ??
@@ -227,7 +241,7 @@ export function useWorkbenchState() {
     persistState()
   }
 
-  async function openDoc(path: string, paragraphIndex?: number) {
+  async function openDoc(path: string, paragraphIndex?: number, options?: { resetScroll?: boolean }) {
     const normalized = normalizeRoutePath(path)
     if (!allDocsByPath[normalized]) return
     if (!openTabPaths.value.includes(normalized)) {
@@ -235,6 +249,11 @@ export function useWorkbenchState() {
     }
     lastActiveDocPath.value = normalized
     persistState()
+
+    if (options?.resetScroll) {
+      scrollPositions.set(normalized, 0)
+      progressByPath.value = { ...progressByPath.value, [normalized]: 0 }
+    }
 
     if (typeof paragraphIndex === 'number') {
       pendingParagraphJump.value = {
@@ -257,6 +276,8 @@ export function useWorkbenchState() {
     const nextTabs = openTabPaths.value.filter((p) => p !== normalized)
     openTabPaths.value = nextTabs
     scrollPositions.delete(normalized)
+    const { [normalized]: _, ...restProgress } = progressByPath.value
+    progressByPath.value = restProgress
     persistState()
 
     if (currentRoutePath.value === normalized) {
@@ -284,6 +305,7 @@ export function useWorkbenchState() {
   async function closeAllTabs() {
     openTabPaths.value = []
     scrollPositions.clear()
+    progressByPath.value = {}
     persistState()
     if (currentRoutePath.value !== '/') {
       await router.go(withBase('/'))
@@ -369,9 +391,21 @@ export function useWorkbenchState() {
     persistState()
   }
 
+  function registerWidthTransition(handler: WidthTransitionHandler | null) {
+    widthTransitionHandler = handler
+  }
+
   function setWidthPreset(preset: ReaderWidthPreset) {
-    widthPreset.value = preset
-    persistState()
+    if (widthPreset.value === preset) return
+    const commit = () => {
+      widthPreset.value = preset
+      persistState()
+    }
+    if (widthTransitionHandler) {
+      widthTransitionHandler(preset, commit)
+    } else {
+      commit()
+    }
   }
 
   function toggleOutlineOpen() {
@@ -385,6 +419,16 @@ export function useWorkbenchState() {
 
   function getScrollPosition(path: string): number {
     return scrollPositions.get(normalizeRoutePath(path)) ?? 0
+  }
+
+  function setReadingProgressForPath(path: string, percent: number) {
+    const normalized = normalizeRoutePath(path)
+    const clamped = Math.min(100, Math.max(0, percent))
+    if (progressByPath.value[normalized] === clamped) return
+    progressByPath.value = {
+      ...progressByPath.value,
+      [normalized]: clamped,
+    }
   }
 
   watch(currentRoutePath, (newPath) => {
@@ -442,8 +486,10 @@ export function useWorkbenchState() {
     adjustLineHeight,
     setFontFamily,
     setWidthPreset,
+    registerWidthTransition,
     toggleOutlineOpen,
     saveScrollPosition,
     getScrollPosition,
+    setReadingProgressForPath,
   }
 }
