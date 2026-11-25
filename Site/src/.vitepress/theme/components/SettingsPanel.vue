@@ -12,6 +12,7 @@ const {
   setAccentScheme,
 } = useThemeMode()
 const {
+  isMobile,
   fontSize,
   lineHeight,
   fontFamily,
@@ -141,8 +142,8 @@ const {
           </div>
         </section>
 
-        <!-- Column Width -->
-        <section class="setting-item">
+        <!-- Column Width (Desktop Only) -->
+        <section v-if="!isMobile" class="setting-item">
           <div class="item-head">
             <span class="item-label">版心宽度</span>
           </div>
@@ -196,8 +197,8 @@ const {
           </div>
         </section>
 
-        <!-- Reset Split Layout -->
-        <section class="setting-item">
+        <!-- Reset Split Layout (Desktop Only) -->
+        <section v-if="!isMobile" class="setting-item">
           <div class="item-head">
             <span class="item-label">三栏分屏布局</span>
             <span class="item-meta">双击滑块也可重置</span>
@@ -233,14 +234,14 @@ const {
 }
 
 .panel-title {
-  font-size: 12px;
+  font-size: var(--ui-font-md);
   font-weight: 800;
   letter-spacing: 0.05em;
   color: var(--text-primary);
 }
 
 .panel-badge {
-  font-size: 10px;
+  font-size: var(--ui-font-xs);
   font-weight: 700;
   padding: 2px 9px;
   background-color: var(--accent-secondary-soft);
@@ -291,13 +292,13 @@ const {
 }
 
 .item-label {
-  font-size: 12px;
+  font-size: var(--ui-font-md);
   font-weight: 700;
   color: var(--text-primary);
 }
 
 .item-meta {
-  font-size: 11px;
+  font-size: var(--ui-font-sm);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -312,16 +313,16 @@ const {
   grid-template-columns: 1fr 1fr 1fr;
 }
 
-/* Exact 1/2 narrow-side radius (15px for 30px height) so border-radius interpolates smoothly across ALL frames! */
+/* Exact 1/2 narrow-side radius (15px for 30px height, 17px on mobile) so border-radius interpolates smoothly! */
 .seg-option {
-  height: 30px;
+  height: var(--ui-row-height);
   border-radius: 0px;
   display: inline-flex;
   align-items: center;
   justify-content: center;
   gap: 5px;
   padding: 0 6px;
-  font-size: 12px;
+  font-size: var(--ui-font-md);
   font-weight: 700;
   white-space: nowrap;
   background-color: var(--bg-chip);
@@ -332,13 +333,20 @@ const {
     color 0.24s var(--ease-nonlinear);
 }
 
-.seg-option:hover {
+@media (hover: hover) and (pointer: fine) {
+  .seg-option:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+  }
+}
+
+.seg-option:active {
   background-color: var(--bg-hover);
   color: var(--text-primary);
 }
 
 .seg-option.active {
-  border-radius: 15px;
+  border-radius: calc(var(--ui-row-height) / 2);
   background-color: var(--accent-primary);
   color: var(--accent-primary-ink);
 }
@@ -351,13 +359,13 @@ const {
 
 /* Matching % units (0% <-> 50%) for silky square-to-circle morph */
 .step-btn {
-  width: 30px;
-  height: 30px;
+  width: var(--ui-row-height);
+  height: var(--ui-row-height);
   border-radius: 0%;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: var(--ui-font-md);
   font-weight: 800;
   background-color: var(--bg-chip);
   color: var(--text-primary);
@@ -367,7 +375,15 @@ const {
     color 0.22s var(--ease-nonlinear);
 }
 
-.step-btn:hover {
+@media (hover: hover) and (pointer: fine) {
+  .step-btn:hover {
+    border-radius: 50%;
+    background-color: var(--accent-primary);
+    color: var(--accent-primary-ink);
+  }
+}
+
+.step-btn:active {
   border-radius: 50%;
   background-color: var(--accent-primary);
   color: var(--accent-primary-ink);
@@ -392,7 +408,15 @@ const {
     color 0.22s var(--ease-nonlinear);
 }
 
-.reset-btn:hover {
+@media (hover: hover) and (pointer: fine) {
+  .reset-btn:hover {
+    border-radius: 16px;
+    background-color: var(--accent-secondary);
+    color: var(--accent-secondary-ink);
+  }
+}
+
+.reset-btn:active {
   border-radius: 16px;
   background-color: var(--accent-secondary);
   color: var(--accent-secondary-ink);

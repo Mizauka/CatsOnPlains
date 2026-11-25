@@ -185,18 +185,24 @@ onBeforeUnmount(() => {
 }
 
 .seg-track.size-md .seg-item {
-  height: 24px;
+  height: 26px;
   padding: 0 10px;
-  font-size: 11px;
+  font-size: var(--ui-font-sm);
 }
 
 .seg-track.size-sm .seg-item {
-  height: 20px;
+  height: 22px;
   padding: 0 9px;
-  font-size: 10px;
+  font-size: var(--ui-font-xs);
 }
 
-.seg-item:hover {
+@media (hover: hover) and (pointer: fine) {
+  .seg-item:hover {
+    color: var(--text-primary);
+  }
+}
+
+.seg-item:active {
   color: var(--text-primary);
 }
 

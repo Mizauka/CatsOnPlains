@@ -106,6 +106,15 @@ function handleWheel(e: WheelEvent) {
   }
 }
 
+function onTrackPointerEnter(e: PointerEvent) {
+  if (e.pointerType === 'touch') return
+  isHoverTrack.value = true
+}
+
+function onTrackPointerLeave() {
+  isHoverTrack.value = false
+}
+
 function onThumbPointerDown(e: PointerEvent) {
   if (e.button !== 0 || !viewportRef.value) return
   e.preventDefault()
@@ -214,8 +223,8 @@ defineExpose({
       v-if="hasOverflow"
       class="csa-track"
       :class="[`csa-track-${orientation}`, { active: isHoverTrack || isDragging }]"
-      @mouseenter="isHoverTrack = true"
-      @mouseleave="isHoverTrack = false"
+      @pointerenter="onTrackPointerEnter"
+      @pointerleave="onTrackPointerLeave"
       @click.self="onTrackClick"
     >
       <div

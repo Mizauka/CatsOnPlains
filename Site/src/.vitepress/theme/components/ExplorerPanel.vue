@@ -186,7 +186,7 @@ function goTileRoot() {
 }
 
 .panel-title {
-  font-size: 12px;
+  font-size: var(--ui-font-md);
   font-weight: 800;
   letter-spacing: 0.05em;
   color: var(--text-primary);
@@ -195,8 +195,8 @@ function goTileRoot() {
 }
 
 .context-bar {
-  height: 34px;
-  min-height: 34px;
+  height: calc(var(--ui-row-height) + 2px);
+  min-height: calc(var(--ui-row-height) + 2px);
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -207,7 +207,7 @@ function goTileRoot() {
 }
 
 .context-label {
-  font-size: 12px;
+  font-size: var(--ui-font-md);
   font-weight: 700;
   color: var(--text-primary);
   white-space: nowrap;
@@ -221,7 +221,7 @@ function goTileRoot() {
 }
 
 .context-meta {
-  font-size: 11px;
+  font-size: var(--ui-font-sm);
   color: var(--text-muted);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -241,7 +241,15 @@ function goTileRoot() {
     color 0.2s var(--ease-nonlinear);
 }
 
-.tool-icon-btn:hover {
+@media (hover: hover) and (pointer: fine) {
+  .tool-icon-btn:hover {
+    border-radius: 50%;
+    background-color: var(--accent-primary);
+    color: var(--accent-primary-ink);
+  }
+}
+
+.tool-icon-btn:active {
   border-radius: 50%;
   background-color: var(--accent-primary);
   color: var(--accent-primary-ink);
@@ -256,7 +264,7 @@ function goTileRoot() {
 }
 
 .crumb-root-btn {
-  font-size: 12px;
+  font-size: var(--ui-font-md);
   font-weight: 700;
   color: var(--text-primary);
   white-space: nowrap;
@@ -264,18 +272,24 @@ function goTileRoot() {
   transition: color 0.16s var(--ease-nonlinear);
 }
 
-.crumb-root-btn:hover {
+@media (hover: hover) and (pointer: fine) {
+  .crumb-root-btn:hover {
+    color: var(--accent-primary-text);
+  }
+}
+
+.crumb-root-btn:active {
   color: var(--accent-primary-text);
 }
 
 .crumb-sep {
-  font-size: 12px;
+  font-size: var(--ui-font-md);
   color: var(--text-muted);
   line-height: 1;
 }
 
 .crumb-active {
-  font-size: 12px;
+  font-size: var(--ui-font-md);
   font-weight: 700;
   color: var(--accent-primary-text);
   white-space: nowrap;
@@ -285,12 +299,12 @@ function goTileRoot() {
 }
 
 .back-pill {
-  height: 22px;
+  height: 24px;
   display: inline-flex;
   align-items: center;
   gap: 4px;
-  padding: 0 9px;
-  font-size: 11px;
+  padding: 0 10px;
+  font-size: var(--ui-font-sm);
   font-weight: 700;
   background-color: var(--bg-elevated);
   color: var(--text-primary);
@@ -299,7 +313,14 @@ function goTileRoot() {
   transition: background-color 0.18s var(--ease-nonlinear), color 0.18s var(--ease-nonlinear);
 }
 
-.back-pill:hover {
+@media (hover: hover) and (pointer: fine) {
+  .back-pill:hover {
+    background-color: var(--accent-primary);
+    color: var(--accent-primary-ink);
+  }
+}
+
+.back-pill:active {
   background-color: var(--accent-primary);
   color: var(--accent-primary-ink);
 }
@@ -323,22 +344,29 @@ function goTileRoot() {
 }
 
 .outline-header {
-  height: 32px;
-  min-height: 32px;
+  height: var(--ui-row-height);
+  min-height: var(--ui-row-height);
   width: 100%;
   display: flex;
   align-items: center;
   gap: 6px;
   padding: 0 var(--pane-pad);
   background-color: transparent;
-  font-size: 11px;
+  font-size: var(--ui-font-sm);
   font-weight: 800;
   letter-spacing: 0.05em;
   color: var(--text-secondary);
   transition: background-color 0.18s var(--ease-nonlinear), color 0.18s var(--ease-nonlinear);
 }
 
-.outline-header:hover {
+@media (hover: hover) and (pointer: fine) {
+  .outline-header:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+  }
+}
+
+.outline-header:active {
   background-color: var(--bg-hover);
   color: var(--text-primary);
 }
@@ -408,19 +436,26 @@ function goTileRoot() {
 
 .outline-item {
   width: 100%;
-  height: 28px;
+  height: var(--ui-row-height);
   display: flex;
   align-items: center;
   gap: 8px;
   padding: 0 8px;
-  font-size: 12px;
+  font-size: var(--ui-font-md);
   color: var(--text-secondary);
   text-align: left;
   background-color: transparent;
   transition: background-color 0.16s var(--ease-nonlinear), color 0.16s var(--ease-nonlinear);
 }
 
-.outline-item:hover {
+@media (hover: hover) and (pointer: fine) {
+  .outline-item:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+  }
+}
+
+.outline-item:active {
   background-color: var(--bg-hover);
   color: var(--text-primary);
 }

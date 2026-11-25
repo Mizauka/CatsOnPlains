@@ -7,8 +7,10 @@ export type ReaderFontFamily = 'serif' | 'sans'
 export type ReaderWidthPreset = 'narrow' | 'standard' | 'wide'
 export type ActivitySection = 'explorer' | 'search' | 'settings'
 export type SearchScope = 'both' | 'filename' | 'regex'
+export type MobileSheetDetent = 'docked' | 'half' | 'full'
 
 const STATE_STORAGE_KEY = 'cop-workbench-state-v2'
+const MOBILE_MEDIA_QUERY = '(max-width: 900px)'
 
 interface PersistedState {
   openTabPaths: string[]
@@ -39,7 +41,18 @@ export const WIDTH_PRESET_PX: Record<ReaderWidthPreset, number> = {
 
 export function normalizeRoutePath(raw: string): string {
   let p = raw.split('?')[0].split('#')[0]
-  if (p.endsWith('.html')) {
+  try {
+    p = decodeURI(p)
+  } catch {
+    // ignore malformed URI sequences
+  }
+  const base = (import.meta.env.BASE_URL || '/').replace(/\/+$/, '')
+  if (base && base !== '/' && (p === base || p.startsWith(base + '/'))) {
+    p = p.slice(base.length) || '/'
+  }
+  if (p.endsWith('/index.html')) {
+    p = p.slice(0, -10) || '/'
+  } else if (p.endsWith('.html')) {
     p = p.slice(0, -5)
   }
   if (p.length > 1 && p.endsWith('/')) {
@@ -52,6 +65,10 @@ export function normalizeRoutePath(raw: string): string {
 }
 
 // Singleton shared reactive state across workbench components
+const isMobile = ref(false)
+const mobileDrawerOpen = ref(false)
+const mobileSheetDetent = ref<MobileSheetDetent>('docked')
+
 const openTabPaths = ref<string[]>([])
 const lastActiveDocPath = ref<string | null>(null)
 const explorerViewMode = ref<ExplorerViewMode>('tree')
@@ -76,7 +93,7 @@ const lineHeight = ref(1.95)
 const fontFamily = ref<ReaderFontFamily>('serif')
 const widthPreset = ref<ReaderWidthPreset>('standard')
 
-// Strictly per-path scroll position & reading progress (never shared/overwritten across tabs!)
+// Strictly per-path scroll position & reading progress
 const scrollPositions = new Map<string, number>()
 const progressByPath = ref<Record<string, number>>({})
 
@@ -84,7 +101,26 @@ type WidthTransitionHandler = (next: ReaderWidthPreset, commit: () => void) => v
 let widthTransitionHandler: WidthTransitionHandler | null = null
 
 let hydrated = false
+let mediaWatcherAttached = false
 let jumpNonce = 0
+
+function initViewportWatcher() {
+  if (mediaWatcherAttached || typeof window === 'undefined' || !window.matchMedia) return
+  mediaWatcherAttached = true
+  const mq = window.matchMedia(MOBILE_MEDIA_QUERY)
+  const sync = () => {
+    const nextMobile = mq.matches
+    if (isMobile.value !== nextMobile) {
+      isMobile.value = nextMobile
+      if (nextMobile) {
+        mobileDrawerOpen.value = false
+        mobileSheetDetent.value = 'docked'
+      }
+    }
+  }
+  isMobile.value = mq.matches
+  mq.addEventListener('change', sync)
+}
 
 function persistState() {
   if (typeof localStorage === 'undefined' || !hydrated) return
@@ -113,6 +149,7 @@ function persistState() {
 function hydrateState() {
   if (hydrated || typeof localStorage === 'undefined') return
   hydrated = true
+  initViewportWatcher()
   try {
     const raw = localStorage.getItem(STATE_STORAGE_KEY)
     if (!raw) return
@@ -175,7 +212,6 @@ export function useWorkbenchState() {
     return allDocsByPath[currentRoutePath.value] ?? null
   })
 
-  // Computed strictly from current route's independent progress entry
   const readingProgress = computed<number>(() => {
     return progressByPath.value[currentRoutePath.value] ?? 0
   })
@@ -249,6 +285,10 @@ export function useWorkbenchState() {
     }
     lastActiveDocPath.value = normalized
     persistState()
+
+    if (isMobile.value) {
+      mobileDrawerOpen.value = false
+    }
 
     if (options?.resetScroll) {
       scrollPositions.set(normalized, 0)
@@ -337,6 +377,11 @@ export function useWorkbenchState() {
   }
 
   function setActivitySection(section: ActivitySection) {
+    if (isMobile.value) {
+      activitySection.value = section
+      mobileDrawerOpen.value = true
+      return
+    }
     if (activitySection.value === section && leftVisible.value) {
       leftVisible.value = false
     } else {
@@ -347,11 +392,44 @@ export function useWorkbenchState() {
   }
 
   function toggleLeftPanel() {
+    if (isMobile.value) {
+      mobileDrawerOpen.value = !mobileDrawerOpen.value
+      if (mobileDrawerOpen.value) {
+        mobileSheetDetent.value = 'docked'
+      }
+      return
+    }
     leftVisible.value = !leftVisible.value
     persistState()
   }
 
+  function setMobileDrawerOpen(open: boolean) {
+    mobileDrawerOpen.value = open
+    if (open) {
+      mobileSheetDetent.value = 'docked'
+    }
+  }
+
+  function setMobileSheetDetent(detent: MobileSheetDetent) {
+    mobileSheetDetent.value = detent
+    if (detent !== 'docked') {
+      mobileDrawerOpen.value = false
+    }
+  }
+
+  function toggleMobileSheet() {
+    if (mobileSheetDetent.value === 'docked') {
+      setMobileSheetDetent('half')
+    } else {
+      setMobileSheetDetent('docked')
+    }
+  }
+
   function toggleRightPanel() {
+    if (isMobile.value) {
+      toggleMobileSheet()
+      return
+    }
     rightVisible.value = !rightVisible.value
     persistState()
   }
@@ -401,7 +479,7 @@ export function useWorkbenchState() {
       widthPreset.value = preset
       persistState()
     }
-    if (widthTransitionHandler) {
+    if (widthTransitionHandler && !isMobile.value) {
       widthTransitionHandler(preset, commit)
     } else {
       commit()
@@ -443,6 +521,9 @@ export function useWorkbenchState() {
     DEFAULT_RIGHT_WIDTH,
     MIN_LEFT_WIDTH,
     MIN_RIGHT_WIDTH,
+    isMobile,
+    mobileDrawerOpen,
+    mobileSheetDetent,
     currentRoutePath,
     activeDoc,
     openTabs,
@@ -478,6 +559,9 @@ export function useWorkbenchState() {
     setExplorerViewMode,
     setActivitySection,
     toggleLeftPanel,
+    setMobileDrawerOpen,
+    setMobileSheetDetent,
+    toggleMobileSheet,
     toggleRightPanel,
     setLeftWidth,
     setRightWidth,

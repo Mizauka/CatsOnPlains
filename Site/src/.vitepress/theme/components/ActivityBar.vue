@@ -3,6 +3,7 @@ import IconGlyph from './IconGlyph.vue'
 import { useWorkbenchState } from '../composables/useWorkbenchState'
 
 const {
+  isMobile,
   activitySection,
   leftVisible,
   rightVisible,
@@ -13,11 +14,11 @@ const {
 
 <template>
   <nav class="activity-bar shape-rect" aria-label="工作台活动栏">
-    <!-- Top Primary Tabs: Explorer + Expanded Search (No redundant Home) -->
+    <!-- Top Primary Tabs: Explorer + Expanded Search -->
     <div class="activity-group">
       <button
         class="activity-btn"
-        :class="{ active: leftVisible && activitySection === 'explorer' }"
+        :class="{ active: (isMobile || leftVisible) && activitySection === 'explorer' }"
         title="章节资源管理器"
         @click="setActivitySection('explorer')"
       >
@@ -26,7 +27,7 @@ const {
 
       <button
         class="activity-btn"
-        :class="{ active: leftVisible && activitySection === 'search' }"
+        :class="{ active: (isMobile || leftVisible) && activitySection === 'search' }"
         title="展开搜索（文件名 + 全文正则）"
         @click="setActivitySection('search')"
       >
@@ -34,9 +35,10 @@ const {
       </button>
     </div>
 
-    <!-- Bottom Utility Tabs: Comments + Settings (Settings placed directly below Comments) -->
+    <!-- Bottom Utility Tabs: Desktop has Comments + Settings; Mobile moves Comments to bottom Dock-to-Sheet -->
     <div class="activity-group bottom">
       <button
+        v-if="!isMobile"
         class="activity-btn secondary-mode"
         :class="{ active: rightVisible }"
         title="切换右侧评论区"
@@ -47,7 +49,7 @@ const {
 
       <button
         class="activity-btn"
-        :class="{ active: leftVisible && activitySection === 'settings' }"
+        :class="{ active: (isMobile || leftVisible) && activitySection === 'settings' }"
         title="阅读与工作台设置"
         @click="setActivitySection('settings')"
       >
@@ -94,7 +96,14 @@ const {
     color 0.22s var(--ease-nonlinear);
 }
 
-.activity-btn:hover {
+@media (hover: hover) and (pointer: fine) {
+  .activity-btn:hover {
+    color: var(--text-primary);
+    background-color: var(--bg-hover);
+  }
+}
+
+.activity-btn:active {
   color: var(--text-primary);
   background-color: var(--bg-hover);
 }
@@ -105,7 +114,13 @@ const {
   color: var(--accent-primary-ink);
 }
 
-.activity-btn.active:hover {
+@media (hover: hover) and (pointer: fine) {
+  .activity-btn.active:hover {
+    background-color: var(--accent-primary-hover);
+  }
+}
+
+.activity-btn.active:active {
   background-color: var(--accent-primary-hover);
 }
 
@@ -115,7 +130,13 @@ const {
   color: var(--accent-secondary-ink);
 }
 
-.activity-btn.secondary-mode.active:hover {
+@media (hover: hover) and (pointer: fine) {
+  .activity-btn.secondary-mode.active:hover {
+    background-color: var(--accent-secondary-hover);
+  }
+}
+
+.activity-btn.secondary-mode.active:active {
   background-color: var(--accent-secondary-hover);
 }
 </style>

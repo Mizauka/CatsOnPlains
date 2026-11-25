@@ -137,7 +137,14 @@ function handleClose(path: string) {
     color 0.18s var(--ease-standard);
 }
 
-.tab-item:hover {
+@media (hover: hover) and (pointer: fine) {
+  .tab-item:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+  }
+}
+
+.tab-item:active {
   background-color: var(--bg-hover);
   color: var(--text-primary);
 }
@@ -230,12 +237,22 @@ function handleClose(path: string) {
     opacity 0.14s ease;
 }
 
-.tab-item:hover .tab-close,
+@media (hover: hover) and (pointer: fine) {
+  .tab-item:hover .tab-close {
+    opacity: 1;
+  }
+
+  .tab-close:hover {
+    background-color: var(--accent-primary);
+    color: var(--accent-primary-ink);
+  }
+}
+
 .tab-item.active .tab-close {
   opacity: 1;
 }
 
-.tab-close:hover {
+.tab-close:active {
   background-color: var(--accent-primary);
   color: var(--accent-primary-ink);
 }
@@ -270,12 +287,24 @@ function handleClose(path: string) {
   transition: background-color 0.16s var(--ease-standard), color 0.16s var(--ease-standard);
 }
 
-.tab-action-pill:hover {
+@media (hover: hover) and (pointer: fine) {
+  .tab-action-pill:hover {
+    background-color: var(--accent-primary-soft);
+    color: var(--accent-primary-text);
+  }
+
+  .tab-action-pill.danger:hover {
+    background-color: var(--accent-primary);
+    color: var(--accent-primary-ink);
+  }
+}
+
+.tab-action-pill:active {
   background-color: var(--accent-primary-soft);
   color: var(--accent-primary-text);
 }
 
-.tab-action-pill.danger:hover {
+.tab-action-pill.danger:active {
   background-color: var(--accent-primary);
   color: var(--accent-primary-ink);
 }

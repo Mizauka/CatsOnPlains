@@ -19,6 +19,7 @@ const widthOptions: SegmentOption<ReaderWidthPreset>[] = [
 
 const {
   manifest,
+  isMobile,
   activeDoc,
   currentRoutePath,
   adjacentDocs,
@@ -267,15 +268,15 @@ defineExpose({
 </script>
 
 <template>
-  <main class="reader-panel shape-rect" aria-label="小说阅读器">
-    <!-- Multi-Tab Bar with Horizontal WinUI Scrollbar -->
-    <TabBar @before-switch="saveCurrentScroll" />
+  <main class="reader-panel shape-rect" :class="{ 'is-mobile': isMobile }" aria-label="小说阅读器">
+    <!-- Multi-Tab Bar (Desktop Only — removed on mobile!) -->
+    <TabBar v-if="!isMobile" @before-switch="saveCurrentScroll" />
 
     <!-- Breadcrumb & Column Width Bar -->
     <div v-if="activeDoc" class="breadcrumb-bar shape-rect">
       <div class="breadcrumbs">
-        <span class="crumb-root">{{ manifest.bookTitle }}</span>
-        <span class="crumb-sep">/</span>
+        <span v-if="!isMobile" class="crumb-root">{{ manifest.bookTitle }}</span>
+        <span v-if="!isMobile" class="crumb-sep">/</span>
         <span class="crumb-chapter">{{ activeDoc.chapterTitle }}</span>
         <span class="crumb-sep">/</span>
         <span class="crumb-doc">{{ activeDoc.shortTitle }}</span>
@@ -288,6 +289,7 @@ defineExpose({
         </span>
 
         <SlidingSegmentedControl
+          v-if="!isMobile"
           :model-value="widthPreset"
           :options="widthOptions"
           size="sm"
@@ -395,15 +397,40 @@ defineExpose({
   overflow: hidden;
 }
 
+.reader-panel.is-mobile {
+  min-width: 0;
+}
+
+.reader-panel.is-mobile .breadcrumb-bar {
+  padding: 0 16px;
+}
+
+.reader-panel.is-mobile .reader-article {
+  max-width: 100% !important;
+  padding: 24px 20px 104px 20px;
+}
+
+.reader-panel.is-mobile .chapter-pager {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+  margin-top: 40px;
+}
+
+.reader-panel.is-mobile .pager-btn {
+  max-width: 100%;
+  justify-content: space-between;
+}
+
 .breadcrumb-bar {
-  height: 34px;
-  min-height: 34px;
+  height: calc(var(--ui-row-height) + 2px);
+  min-height: calc(var(--ui-row-height) + 2px);
   display: flex;
   align-items: center;
   justify-content: space-between;
   padding: 0 24px;
   background-color: var(--bg-base);
-  font-size: 12px;
+  font-size: var(--ui-font-md);
   user-select: none;
   gap: 12px;
   overflow: hidden;
@@ -436,7 +463,7 @@ defineExpose({
 }
 
 .crumb-ver {
-  font-size: 10px;
+  font-size: var(--ui-font-xs);
   font-weight: 700;
   padding: 2px 8px;
   background-color: var(--accent-secondary-soft);
@@ -453,7 +480,7 @@ defineExpose({
 }
 
 .doc-stat {
-  font-size: 11px;
+  font-size: var(--ui-font-sm);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
   white-space: nowrap;
@@ -496,7 +523,7 @@ defineExpose({
 }
 
 .meta-badge {
-  font-size: 11px;
+  font-size: var(--ui-font-sm);
   font-weight: 700;
   padding: 3px 11px;
   white-space: nowrap;
@@ -544,12 +571,24 @@ defineExpose({
     color 0.2s var(--ease-nonlinear);
 }
 
-.pager-btn:hover {
+@media (hover: hover) and (pointer: fine) {
+  .pager-btn:hover {
+    background-color: var(--accent-primary);
+    color: var(--accent-primary-ink);
+  }
+
+  .pager-btn:hover small {
+    color: var(--accent-primary-ink);
+    opacity: 0.85;
+  }
+}
+
+.pager-btn:active {
   background-color: var(--accent-primary);
   color: var(--accent-primary-ink);
 }
 
-.pager-btn:hover small {
+.pager-btn:active small {
   color: var(--accent-primary-ink);
   opacity: 0.85;
 }
@@ -566,13 +605,13 @@ defineExpose({
 }
 
 .pager-text small {
-  font-size: 10px;
+  font-size: var(--ui-font-xs);
   color: var(--text-muted);
   font-weight: 700;
 }
 
 .pager-text strong {
-  font-size: 13px;
+  font-size: var(--ui-font-base);
   font-weight: 700;
   white-space: nowrap;
   overflow: hidden;
@@ -636,7 +675,13 @@ defineExpose({
   transition: background-color 0.2s var(--ease-nonlinear);
 }
 
-.empty-cta:hover {
+@media (hover: hover) and (pointer: fine) {
+  .empty-cta:hover {
+    background-color: var(--accent-primary-hover);
+  }
+}
+
+.empty-cta:active {
   background-color: var(--accent-primary-hover);
 }
 </style>

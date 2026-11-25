@@ -13,6 +13,33 @@
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
   --pane-pad: 12px;
   --pane-gap: 8px;
+
+  /* Desktop UI Typography Scale */
+  --ui-font-xs: 10px;
+  --ui-font-sm: 11px;
+  --ui-font-md: 12px;
+  --ui-font-base: 13px;
+  --ui-font-lg: 14px;
+  --ui-row-height: 32px;
+}
+
+/* Resolution-Adaptive Fluid UI Typography on Mobile / Tablet (<= 900px) */
+@media (max-width: 900px) {
+  :root {
+    --ui-font-xs: clamp(11px, 2.7vw, 13px);
+    --ui-font-sm: clamp(12.5px, 3.1vw, 14px);
+    --ui-font-md: clamp(14px, 3.5vw, 15.5px);
+    --ui-font-base: clamp(15px, 3.8vw, 16.5px);
+    --ui-font-lg: clamp(16px, 4.1vw, 18px);
+    --ui-row-height: clamp(38px, 9.5vw, 44px);
+  }
+
+  /* Prevent iOS Safari forced auto-zoom on input focus (requires computed font-size >= 16px) */
+  input,
+  textarea,
+  select {
+    font-size: 16px !important;
+  }
 }
 
 :root,
@@ -231,6 +258,9 @@ body,
   width: 100%;
   height: 100%;
   overflow: hidden;
+  overscroll-behavior: none;
+  touch-action: manipulation;
+  -webkit-text-size-adjust: 100%;
   background-color: var(--bg-base);
   color: var(--text-primary);
   font-family:
@@ -258,11 +288,14 @@ button {
   border: none;
   background: transparent;
   padding: 0;
+  -webkit-tap-highlight-color: transparent;
 }
 
-a {
+a,
+[role='button'] {
   color: inherit;
   text-decoration: none;
+  -webkit-tap-highlight-color: transparent;
 }
 
 /* Shape Utilities */

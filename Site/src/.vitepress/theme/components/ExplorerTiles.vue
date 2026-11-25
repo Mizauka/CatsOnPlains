@@ -123,7 +123,13 @@ function enterFolder(chapterId: string) {
   transition: background-color 0.2s var(--ease-nonlinear);
 }
 
-.tile-card:hover {
+@media (hover: hover) and (pointer: fine) {
+  .tile-card:hover {
+    background-color: var(--bg-hover);
+  }
+}
+
+.tile-card:active {
   background-color: var(--bg-hover);
 }
 
@@ -249,7 +255,7 @@ function enterFolder(chapterId: string) {
 
 .tile-title {
   width: 100%;
-  font-size: 12px;
+  font-size: var(--ui-font-md);
   font-weight: 700;
   color: var(--text-primary);
   line-height: 1.35;
@@ -261,12 +267,12 @@ function enterFolder(chapterId: string) {
 }
 
 .folder-title {
-  font-size: 13px;
+  font-size: var(--ui-font-base);
 }
 
 .tile-sub {
   margin-top: 3px;
-  font-size: 11px;
+  font-size: var(--ui-font-sm);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
 }
@@ -274,7 +280,7 @@ function enterFolder(chapterId: string) {
 .quick-full-pill {
   margin-top: 8px;
   padding: 3px 11px;
-  font-size: 11px;
+  font-size: var(--ui-font-sm);
   font-weight: 700;
   background-color: var(--bg-chip);
   color: var(--text-primary);
@@ -282,7 +288,14 @@ function enterFolder(chapterId: string) {
   transition: background-color 0.16s var(--ease-standard), color 0.16s var(--ease-standard);
 }
 
-.quick-full-pill:hover {
+@media (hover: hover) and (pointer: fine) {
+  .quick-full-pill:hover {
+    background-color: var(--accent-primary);
+    color: var(--accent-primary-ink);
+  }
+}
+
+.quick-full-pill:active {
   background-color: var(--accent-primary);
   color: var(--accent-primary-ink);
 }

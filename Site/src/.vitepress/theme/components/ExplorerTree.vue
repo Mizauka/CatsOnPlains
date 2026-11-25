@@ -98,13 +98,13 @@ function handleDocClick(item: NovelDocItem) {
 .tree-row {
   position: relative;
   width: 100%;
-  height: 32px;
+  height: var(--ui-row-height);
   display: flex;
   align-items: center;
   gap: 7px;
   padding: 0 8px;
   text-align: left;
-  font-size: 13px;
+  font-size: var(--ui-font-base);
   color: var(--text-secondary);
   background-color: transparent;
   transition:
@@ -112,7 +112,14 @@ function handleDocClick(item: NovelDocItem) {
     color 0.18s var(--ease-nonlinear);
 }
 
-.tree-row:hover {
+@media (hover: hover) and (pointer: fine) {
+  .tree-row:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+  }
+}
+
+.tree-row:active {
   background-color: var(--bg-hover);
   color: var(--text-primary);
 }
@@ -153,7 +160,7 @@ function handleDocClick(item: NovelDocItem) {
 }
 
 .version-badge {
-  font-size: 10px;
+  font-size: var(--ui-font-xs);
   font-weight: 700;
   padding: 2px 8px;
   background-color: var(--accent-secondary-soft);
@@ -163,7 +170,7 @@ function handleDocClick(item: NovelDocItem) {
 }
 
 .count-meta {
-  font-size: 11px;
+  font-size: var(--ui-font-sm);
   color: var(--text-muted);
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;
@@ -262,7 +269,7 @@ function handleDocClick(item: NovelDocItem) {
 }
 
 .word-meta {
-  font-size: 11px;
+  font-size: var(--ui-font-sm);
   color: var(--text-muted);
   flex-shrink: 0;
   font-variant-numeric: tabular-nums;

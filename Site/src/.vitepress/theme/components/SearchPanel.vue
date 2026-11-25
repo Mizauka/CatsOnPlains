@@ -319,7 +319,7 @@ function clearSearch() {
 }
 
 .panel-title {
-  font-size: 12px;
+  font-size: var(--ui-font-md);
   font-weight: 800;
   letter-spacing: 0.05em;
   color: var(--text-primary);
@@ -338,7 +338,7 @@ function clearSearch() {
 .search-input-wrap {
   flex: 1;
   min-width: 0;
-  height: 32px;
+  height: var(--ui-row-height);
   display: flex;
   align-items: center;
   gap: 7px;
@@ -366,7 +366,7 @@ function clearSearch() {
   min-width: 0;
   border: none;
   background: transparent;
-  font-size: 12px;
+  font-size: var(--ui-font-md);
   color: var(--text-primary);
   outline: none;
 }
@@ -386,21 +386,28 @@ function clearSearch() {
   flex-shrink: 0;
 }
 
-.clear-btn:hover {
+@media (hover: hover) and (pointer: fine) {
+  .clear-btn:hover {
+    background-color: var(--accent-primary);
+    color: var(--accent-primary-ink);
+  }
+}
+
+.clear-btn:active {
   background-color: var(--accent-primary);
   color: var(--accent-primary-ink);
 }
 
 /* M3 Expressive Morph: Pure square -> Pure circle when active */
 .flag-toggle {
-  width: 32px;
-  height: 32px;
+  width: var(--ui-row-height);
+  height: var(--ui-row-height);
   border-radius: 0%;
   flex-shrink: 0;
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: var(--ui-font-sm);
   font-weight: 800;
   background-color: var(--bg-chip);
   color: var(--text-secondary);
@@ -410,7 +417,14 @@ function clearSearch() {
     color 0.22s var(--ease-nonlinear);
 }
 
-.flag-toggle:hover {
+@media (hover: hover) and (pointer: fine) {
+  .flag-toggle:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+  }
+}
+
+.flag-toggle:active {
   background-color: var(--bg-hover);
   color: var(--text-primary);
 }
@@ -558,7 +572,13 @@ function clearSearch() {
   transition: background-color 0.15s var(--ease-standard);
 }
 
-.file-hit-item:hover {
+@media (hover: hover) and (pointer: fine) {
+  .file-hit-item:hover {
+    background-color: var(--bg-hover);
+  }
+}
+
+.file-hit-item:active {
   background-color: var(--bg-hover);
 }
 
@@ -583,7 +603,7 @@ function clearSearch() {
 }
 
 .hit-name {
-  font-size: 12px;
+  font-size: var(--ui-font-md);
   font-weight: 700;
   color: var(--text-primary);
   white-space: nowrap;
@@ -592,7 +612,7 @@ function clearSearch() {
 }
 
 .hit-sub {
-  font-size: 11px;
+  font-size: var(--ui-font-sm);
   color: var(--text-muted);
   white-space: nowrap;
   overflow: hidden;
@@ -600,7 +620,7 @@ function clearSearch() {
 }
 
 .hit-words {
-  font-size: 10px;
+  font-size: var(--ui-font-xs);
   font-weight: 700;
   padding: 2px 7px;
   background-color: var(--bg-chip);
@@ -632,12 +652,18 @@ function clearSearch() {
   transition: background-color 0.14s var(--ease-standard);
 }
 
-.group-head:hover {
+@media (hover: hover) and (pointer: fine) {
+  .group-head:hover {
+    background-color: var(--bg-hover);
+  }
+}
+
+.group-head:active {
   background-color: var(--bg-hover);
 }
 
 .group-doc {
-  font-size: 12px;
+  font-size: var(--ui-font-md);
   font-weight: 700;
   color: var(--text-primary);
   white-space: nowrap;
@@ -646,7 +672,7 @@ function clearSearch() {
 }
 
 .group-badge {
-  font-size: 10px;
+  font-size: var(--ui-font-xs);
   font-weight: 700;
   padding: 1px 7px;
   background-color: var(--accent-secondary-soft);
@@ -664,14 +690,21 @@ function clearSearch() {
   width: 100%;
   padding: 6px 8px;
   text-align: left;
-  font-size: 12px;
+  font-size: var(--ui-font-md);
   line-height: 1.55;
   color: var(--text-secondary);
   background-color: transparent;
   transition: background-color 0.14s var(--ease-standard), color 0.14s var(--ease-standard);
 }
 
-.snippet-btn:hover {
+@media (hover: hover) and (pointer: fine) {
+  .snippet-btn:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+  }
+}
+
+.snippet-btn:active {
   background-color: var(--bg-hover);
   color: var(--text-primary);
 }

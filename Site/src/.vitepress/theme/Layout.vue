@@ -1,11 +1,12 @@
 <script setup lang="ts">
-import { ref, onMounted, onBeforeUnmount } from 'vue'
+import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import TitleBar from './components/TitleBar.vue'
 import ActivityBar from './components/ActivityBar.vue'
 import ExplorerPanel from './components/ExplorerPanel.vue'
 import ReaderPanel from './components/ReaderPanel.vue'
 import RightPanel from './components/RightPanel.vue'
 import StatusBar from './components/StatusBar.vue'
+import MobileDockSheet from './components/MobileDockSheet.vue'
 import { useThemeMode } from './composables/useThemeMode'
 import { useWorkbenchState } from './composables/useWorkbenchState'
 import { useSplitResize } from './composables/useSplitResize'
@@ -17,6 +18,9 @@ const {
   DEFAULT_RIGHT_WIDTH,
   MIN_LEFT_WIDTH,
   MIN_RIGHT_WIDTH,
+  isMobile,
+  mobileDrawerOpen,
+  mobileSheetDetent,
   leftWidth,
   rightWidth,
   leftVisible,
@@ -24,6 +28,7 @@ const {
   ensureHydrated,
   setLeftWidth,
   setRightWidth,
+  setMobileDrawerOpen,
   toggleLeftPanel,
   toggleRightPanel,
 } = useWorkbenchState()
@@ -63,7 +68,170 @@ const rightSash = useSplitResize({
   },
 })
 
+// ============================================================================
+// Mobile Left Push-Drawer Gesture State (1:1 Drag + Velocity Nonlinear Snap)
+// ============================================================================
+const viewportWidth = ref(390)
+const isDraggingDrawer = ref(false)
+const dragDrawerProgress = ref<number | null>(null)
+
+let gestureActive = false
+let gestureLocked: 'none' | 'horizontal' | 'vertical' = 'none'
+let gestureStartX = 0
+let gestureStartY = 0
+let gestureStartProgress = 0
+let gestureLastX = 0
+let gestureLastTime = 0
+let gestureVelocityX = 0 // px/ms
+let suppressNextClick = false
+let suppressClickTimer: number | null = null
+
+const mobileDrawerWidth = computed(() => {
+  return Math.min(340, Math.max(264, Math.round(viewportWidth.value * 0.84)))
+})
+
+const drawerProgress = computed(() => {
+  if (isDraggingDrawer.value && dragDrawerProgress.value !== null) {
+    return dragDrawerProgress.value
+  }
+  return mobileDrawerOpen.value ? 1 : 0
+})
+
+const drawerTransformStyle = computed(() => {
+  const offset = (drawerProgress.value - 1) * mobileDrawerWidth.value
+  return {
+    width: `${mobileDrawerWidth.value}px`,
+    transform: `translateX(${offset}px)`,
+  }
+})
+
+const pushedMainTransformStyle = computed(() => {
+  const offset = drawerProgress.value * mobileDrawerWidth.value
+  return {
+    transform: `translateX(${offset}px)`,
+  }
+})
+
+function syncViewportWidth() {
+  if (typeof window !== 'undefined') {
+    viewportWidth.value = window.innerWidth
+  }
+}
+
+function onMobilePointerDown(e: PointerEvent) {
+  if (!isMobile.value || e.button !== 0) return
+  // Do not hijack gestures when bottom sheet is expanded or starting on bottom dock / text input
+  if (mobileSheetDetent.value !== 'docked') return
+  const target = e.target as HTMLElement | null
+  if (target?.closest('.dock-sheet, input, textarea, select')) return
+
+  const isOpen = mobileDrawerOpen.value
+
+  // Full-screen swipe: anywhere on screen can swipe right to open (or swipe left to close),
+  // avoiding conflict with OS/browser screen-edge back gestures!
+  gestureActive = true
+  gestureLocked = 'none'
+  gestureStartX = e.clientX
+  gestureStartY = e.clientY
+  gestureLastX = e.clientX
+  gestureLastTime = performance.now()
+  gestureVelocityX = 0
+  gestureStartProgress = isOpen ? 1 : 0
+
+  window.addEventListener('pointermove', onMobilePointerMove, { passive: false })
+  window.addEventListener('pointerup', onMobilePointerUp)
+  window.addEventListener('pointercancel', onMobilePointerUp)
+}
+
+function onMobilePointerMove(e: PointerEvent) {
+  if (!gestureActive) return
+  const dx = e.clientX - gestureStartX
+  const dy = e.clientY - gestureStartY
+
+  if (gestureLocked === 'none') {
+    if (Math.abs(dx) < 12 && Math.abs(dy) < 12) return
+    if (Math.abs(dx) > Math.abs(dy) * 1.35) {
+      // Closed opens on rightward swipe; Open closes on leftward swipe
+      if ((!mobileDrawerOpen.value && dx > 0) || (mobileDrawerOpen.value && dx < 0)) {
+        gestureLocked = 'horizontal'
+        isDraggingDrawer.value = true
+        window.getSelection?.()?.removeAllRanges()
+      } else {
+        cleanupDrawerGesture()
+        return
+      }
+    } else {
+      gestureLocked = 'vertical'
+      cleanupDrawerGesture()
+      return
+    }
+  }
+
+  if (gestureLocked === 'horizontal') {
+    e.preventDefault()
+    const now = performance.now()
+    const dt = Math.max(1, now - gestureLastTime)
+    gestureVelocityX = (e.clientX - gestureLastX) / dt
+    gestureLastX = e.clientX
+    gestureLastTime = now
+
+    const rawProgress = gestureStartProgress + dx / mobileDrawerWidth.value
+    dragDrawerProgress.value = Math.max(0, Math.min(1, rawProgress))
+  }
+}
+
+function cleanupDrawerGesture() {
+  gestureActive = false
+  gestureLocked = 'none'
+  window.removeEventListener('pointermove', onMobilePointerMove)
+  window.removeEventListener('pointerup', onMobilePointerUp)
+  window.removeEventListener('pointercancel', onMobilePointerUp)
+}
+
+function onMobilePointerUp() {
+  if (!gestureActive) return
+  const wasHorizontal = gestureLocked === 'horizontal'
+  const progress = dragDrawerProgress.value ?? gestureStartProgress
+  const vx = gestureVelocityX
+
+  cleanupDrawerGesture()
+  isDraggingDrawer.value = false
+  dragDrawerProgress.value = null
+
+  if (!wasHorizontal) return
+
+  // Suppress synthetic click emitted when pointerup lands on a moved button inside the drawer
+  suppressNextClick = true
+  if (suppressClickTimer !== null) window.clearTimeout(suppressClickTimer)
+  suppressClickTimer = window.setTimeout(() => {
+    suppressNextClick = false
+    suppressClickTimer = null
+  }, 80)
+
+  if (vx > 0.35) {
+    setMobileDrawerOpen(true)
+  } else if (vx < -0.35) {
+    setMobileDrawerOpen(false)
+  } else {
+    setMobileDrawerOpen(progress >= 0.38)
+  }
+}
+
+function onMobileClickCapture(e: MouseEvent) {
+  if (!suppressNextClick) return
+  suppressNextClick = false
+  if (suppressClickTimer !== null) {
+    window.clearTimeout(suppressClickTimer)
+    suppressClickTimer = null
+  }
+  e.preventDefault()
+  e.stopPropagation()
+}
+
 function handleJumpOutline(headingId: string) {
+  if (isMobile.value) {
+    setMobileDrawerOpen(false)
+  }
   readerPanelRef.value?.scrollToHeading(headingId)
 }
 
@@ -75,21 +243,92 @@ function handleKeydown(e: KeyboardEvent) {
     } else {
       toggleLeftPanel()
     }
+  } else if (e.key === 'Escape' && isMobile.value && mobileDrawerOpen.value) {
+    setMobileDrawerOpen(false)
+  }
+}
+
+function preventGestureZoom(e: Event) {
+  e.preventDefault()
+}
+
+function preventPinchTouch(e: TouchEvent) {
+  if (e.touches.length > 1) {
+    e.preventDefault()
   }
 }
 
 onMounted(() => {
   ensureHydrated()
+  syncViewportWidth()
+  window.addEventListener('resize', syncViewportWidth)
   window.addEventListener('keydown', handleKeydown)
+  // Block iOS Safari pinch-to-zoom gestures (Safari ignores viewport user-scalable=no since iOS 10)
+  document.addEventListener('gesturestart', preventGestureZoom, { passive: false })
+  document.addEventListener('gesturechange', preventGestureZoom, { passive: false })
+  document.addEventListener('gestureend', preventGestureZoom, { passive: false })
+  document.addEventListener('touchstart', preventPinchTouch, { passive: false })
+  document.addEventListener('touchmove', preventPinchTouch, { passive: false })
 })
 
 onBeforeUnmount(() => {
+  cleanupDrawerGesture()
+  window.removeEventListener('resize', syncViewportWidth)
   window.removeEventListener('keydown', handleKeydown)
+  document.removeEventListener('gesturestart', preventGestureZoom)
+  document.removeEventListener('gesturechange', preventGestureZoom)
+  document.removeEventListener('gestureend', preventGestureZoom)
+  document.removeEventListener('touchstart', preventPinchTouch)
+  document.removeEventListener('touchmove', preventPinchTouch)
 })
 </script>
 
 <template>
-  <div class="workbench-shell shape-rect">
+  <!-- ==================== MOBILE PUSH-DRAWER + DOCK-TO-SHEET LAYOUT ==================== -->
+  <div
+    v-if="isMobile"
+    class="mobile-shell shape-rect"
+    @pointerdown="onMobilePointerDown"
+    @click.capture="onMobileClickCapture"
+  >
+    <!-- Left Push Drawer (ActivityBar + Explorer/Search/Settings) -->
+    <aside
+      class="mobile-drawer shape-rect"
+      :class="{ dragging: isDraggingDrawer }"
+      :style="drawerTransformStyle"
+      :aria-hidden="!mobileDrawerOpen && !isDraggingDrawer"
+    >
+      <ActivityBar />
+      <div class="mobile-drawer-content shape-rect">
+        <ExplorerPanel @jump-outline="handleJumpOutline" />
+      </div>
+    </aside>
+
+    <!-- Main Pushed Stage (TitleBar + Single-Doc Reader + Bottom Dock-to-Sheet) -->
+    <div
+      class="mobile-main-stage shape-rect"
+      :class="{ dragging: isDraggingDrawer }"
+      :style="pushedMainTransformStyle"
+    >
+      <TitleBar />
+
+      <div class="mobile-reader-host shape-rect">
+        <ReaderPanel ref="readerPanelRef" />
+        <MobileDockSheet />
+      </div>
+
+      <!-- Scrim over pushed main stage when drawer is open (tap to push closed) -->
+      <div
+        class="drawer-scrim"
+        :class="{ active: drawerProgress > 0.02, dragging: isDraggingDrawer }"
+        :style="{ opacity: drawerProgress * 0.28 }"
+        @click="setMobileDrawerOpen(false)"
+      />
+    </div>
+  </div>
+
+  <!-- ==================== DESKTOP 3-PANEL SPLITPANEL WORKBENCH ==================== -->
+  <div v-else class="workbench-shell shape-rect">
     <!-- Top VS Code-like Title Bar -->
     <TitleBar />
 
@@ -98,7 +337,7 @@ onBeforeUnmount(() => {
       <!-- Slim Far-Left Activity Bar -->
       <ActivityBar />
 
-      <!-- SplitPanel 1: Left Explorer / Search / Settings (Nonlinear Slide Open/Close!) -->
+      <!-- SplitPanel 1: Left Explorer / Search / Settings -->
       <div
         class="split-pane left-pane shape-rect"
         :class="{
@@ -153,7 +392,7 @@ onBeforeUnmount(() => {
         <span class="sash-handle" />
       </div>
 
-      <!-- SplitPanel 3: Right Reserved Comment Panel (Nonlinear Slide Open/Close!) -->
+      <!-- SplitPanel 3: Right Reserved Comment Panel -->
       <div
         class="split-pane right-pane shape-rect"
         :class="{
@@ -178,6 +417,7 @@ onBeforeUnmount(() => {
 </template>
 
 <style scoped>
+/* ==================== DESKTOP STYLES ==================== */
 .workbench-shell {
   width: 100vw;
   height: 100vh;
@@ -195,7 +435,6 @@ onBeforeUnmount(() => {
   overflow: hidden;
 }
 
-/* Nonlinear Slide Open/Collapse for Left & Right SplitPanels */
 .split-pane {
   height: 100%;
   flex: 0 1 auto;
@@ -237,7 +476,6 @@ onBeforeUnmount(() => {
   transform: translateX(32px);
 }
 
-/* SplitPanel channel width matches expanded scrollbar width (10px) */
 .split-sash {
   position: relative;
   width: 10px;
@@ -267,10 +505,6 @@ onBeforeUnmount(() => {
   pointer-events: none;
 }
 
-/* Handle morphs on hover/drag:
-   Idle: centered 4px x 52px capsule (2px radius = 1/2 width, 3px left/right margin)
-   Hover/Drag: expands to 10px (matching expanded scrollbar width, 0 left/right margin),
-   height smoothly grows centered from 52px -> 92px, border-radius -> 0px, color -> #F87F04 */
 .sash-handle {
   width: 4px;
   height: 52px;
@@ -294,5 +528,83 @@ onBeforeUnmount(() => {
   height: 92px;
   border-radius: 0px;
   background-color: var(--accent-primary);
+}
+
+/* ==================== MOBILE PUSH-DRAWER STYLES ==================== */
+.mobile-shell {
+  position: relative;
+  width: 100vw;
+  height: 100vh;
+  height: 100dvh;
+  overflow: hidden;
+  background-color: var(--bg-base);
+  touch-action: pan-y;
+}
+
+.mobile-drawer {
+  position: absolute;
+  top: 0;
+  left: 0;
+  bottom: 0;
+  z-index: 20;
+  display: flex;
+  background-color: var(--bg-surface);
+  border-right: 1px solid var(--divider-hairline);
+  transition: transform 0.36s var(--ease-nonlinear);
+  will-change: transform;
+}
+
+.mobile-drawer.dragging {
+  transition: none;
+}
+
+.mobile-drawer-content {
+  flex: 1;
+  min-width: 0;
+  height: 100%;
+  overflow: hidden;
+}
+
+.mobile-main-stage {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  z-index: 10;
+  display: flex;
+  flex-direction: column;
+  background-color: var(--bg-base);
+  transition: transform 0.36s var(--ease-nonlinear);
+  will-change: transform;
+}
+
+.mobile-main-stage.dragging {
+  transition: none;
+}
+
+.mobile-reader-host {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.drawer-scrim {
+  position: absolute;
+  inset: 0;
+  background-color: #000000;
+  opacity: 0;
+  pointer-events: none;
+  z-index: 50;
+  transition: opacity 0.34s var(--ease-nonlinear);
+}
+
+.drawer-scrim.active {
+  pointer-events: auto;
+}
+
+.drawer-scrim.dragging {
+  transition: none;
 }
 </style>

@@ -5,6 +5,9 @@ import { useWorkbenchState } from '../composables/useWorkbenchState'
 const {
   manifest,
   activeDoc,
+  isMobile,
+  mobileDrawerOpen,
+  mobileSheetDetent,
   leftVisible,
   rightVisible,
   toggleLeftPanel,
@@ -13,51 +16,90 @@ const {
 </script>
 
 <template>
-  <header class="titlebar shape-rect">
-    <!-- Left: Brand Identity -->
-    <div class="titlebar-left">
-      <div class="brand-mark">
-        <span class="brand-dot shape-circle" />
-        <span class="brand-name">{{ manifest.bookTitle }}</span>
-        <span class="brand-tag shape-pill">READER</span>
+  <header class="titlebar shape-rect" :class="{ mobile: isMobile }">
+    <!-- Mobile Top Bar: Left Drawer Button + Center Doc Title + Right Comment Sheet Button -->
+    <template v-if="isMobile">
+      <div class="titlebar-left">
+        <button
+          class="panel-toggle"
+          :class="{ active: mobileDrawerOpen }"
+          title="呼出左侧章节抽屉"
+          @click="toggleLeftPanel"
+        >
+          <IconGlyph name="panel-left" :size="16" />
+        </button>
       </div>
-    </div>
 
-    <!-- Center: Active Document Capsule -->
-    <div class="titlebar-center">
-      <div class="center-pill shape-pill">
-        <span class="center-dot shape-circle" :class="{ active: Boolean(activeDoc) }" />
-        <span class="center-text">
-          <template v-if="activeDoc">
-            {{ activeDoc.chapterTitle }} / {{ activeDoc.shortTitle }}
-          </template>
-          <template v-else>
-            {{ manifest.bookTitle }} · {{ manifest.totalChapters }} 章 {{ manifest.totalScenes }} 幕
-          </template>
-        </span>
+      <div class="titlebar-center">
+        <div class="center-pill shape-pill">
+          <span class="center-dot shape-circle" :class="{ active: Boolean(activeDoc) }" />
+          <span class="center-text">
+            <template v-if="activeDoc">
+              {{ activeDoc.chapterTitle }} · {{ activeDoc.shortTitle }}
+            </template>
+            <template v-else>
+              {{ manifest.bookTitle }}
+            </template>
+          </span>
+        </div>
       </div>
-    </div>
 
-    <!-- Right: Layout Panel Toggles only (Theme mode lives exclusively in Settings) -->
-    <div class="titlebar-right">
-      <button
-        class="panel-toggle"
-        :class="{ active: leftVisible }"
-        title="显示/隐藏左侧面板 (Ctrl+B)"
-        @click="toggleLeftPanel"
-      >
-        <IconGlyph name="panel-left" :size="15" />
-      </button>
+      <div class="titlebar-right">
+        <button
+          class="panel-toggle secondary"
+          :class="{ active: mobileSheetDetent !== 'docked' }"
+          title="展开/收起底部评论区"
+          @click="toggleRightPanel"
+        >
+          <IconGlyph name="comment" :size="15" />
+        </button>
+      </div>
+    </template>
 
-      <button
-        class="panel-toggle secondary"
-        :class="{ active: rightVisible }"
-        title="显示/隐藏右侧评论面板 (Ctrl+Shift+B)"
-        @click="toggleRightPanel"
-      >
-        <IconGlyph name="panel-right" :size="15" />
-      </button>
-    </div>
+    <!-- Desktop Top Bar (Unchanged) -->
+    <template v-else>
+      <div class="titlebar-left">
+        <div class="brand-mark">
+          <span class="brand-dot shape-circle" />
+          <span class="brand-name">{{ manifest.bookTitle }}</span>
+          <span class="brand-tag shape-pill">READER</span>
+        </div>
+      </div>
+
+      <div class="titlebar-center">
+        <div class="center-pill shape-pill">
+          <span class="center-dot shape-circle" :class="{ active: Boolean(activeDoc) }" />
+          <span class="center-text">
+            <template v-if="activeDoc">
+              {{ activeDoc.chapterTitle }} / {{ activeDoc.shortTitle }}
+            </template>
+            <template v-else>
+              {{ manifest.bookTitle }} · {{ manifest.totalChapters }} 章 {{ manifest.totalScenes }} 幕
+            </template>
+          </span>
+        </div>
+      </div>
+
+      <div class="titlebar-right">
+        <button
+          class="panel-toggle"
+          :class="{ active: leftVisible }"
+          title="显示/隐藏左侧面板 (Ctrl+B)"
+          @click="toggleLeftPanel"
+        >
+          <IconGlyph name="panel-left" :size="15" />
+        </button>
+
+        <button
+          class="panel-toggle secondary"
+          :class="{ active: rightVisible }"
+          title="显示/隐藏右侧评论面板 (Ctrl+Shift+B)"
+          @click="toggleRightPanel"
+        >
+          <IconGlyph name="panel-right" :size="15" />
+        </button>
+      </div>
+    </template>
   </header>
 </template>
 
@@ -72,6 +114,13 @@ const {
   background-color: var(--bg-titlebar);
   user-select: none;
   gap: 12px;
+}
+
+.titlebar.mobile {
+  height: 50px;
+  min-height: 50px;
+  grid-template-columns: auto 1fr auto;
+  gap: 10px;
 }
 
 .titlebar-left {
@@ -124,9 +173,15 @@ const {
   align-items: center;
   gap: 8px;
   height: 28px;
-  padding: 0 16px;
+  padding: 0 14px;
   background-color: var(--bg-base);
   max-width: 440px;
+  min-width: 0;
+}
+
+.titlebar.mobile .center-pill {
+  max-width: 100%;
+  height: 32px;
 }
 
 .center-dot {
@@ -142,7 +197,7 @@ const {
 }
 
 .center-text {
-  font-size: 12px;
+  font-size: var(--ui-font-md);
   font-weight: 600;
   color: var(--text-secondary);
   white-space: nowrap;
@@ -157,7 +212,6 @@ const {
   gap: 8px;
 }
 
-/* M3 Expressive Morph: Pure square when off -> Pure circle when on */
 .panel-toggle {
   width: 28px;
   height: 28px;
@@ -174,7 +228,19 @@ const {
     color 0.22s var(--ease-nonlinear);
 }
 
-.panel-toggle:hover {
+.titlebar.mobile .panel-toggle {
+  width: 32px;
+  height: 32px;
+}
+
+@media (hover: hover) and (pointer: fine) {
+  .panel-toggle:hover {
+    background-color: var(--bg-hover);
+    color: var(--text-primary);
+  }
+}
+
+.panel-toggle:active {
   background-color: var(--bg-hover);
   color: var(--text-primary);
 }
