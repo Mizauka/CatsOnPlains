@@ -8,9 +8,12 @@ export type ReaderWidthPreset = 'narrow' | 'standard' | 'wide'
 export type ActivitySection = 'explorer' | 'search' | 'settings'
 export type SearchScope = 'both' | 'filename' | 'regex'
 export type MobileSheetDetent = 'docked' | 'half' | 'full'
+export type ViewportTier = 'phone' | 'dual' | 'desktop'
+export type DualActiveSide = 'left' | 'right' | 'none'
 
-const STATE_STORAGE_KEY = 'cop-workbench-state-v2'
-const MOBILE_MEDIA_QUERY = '(max-width: 900px)'
+const STATE_STORAGE_KEY = 'cop-workbench-state-v3'
+export const PHONE_MAX_WIDTH = 640
+export const DUAL_PANE_MAX_WIDTH = 1080
 
 interface PersistedState {
   openTabPaths: string[]
@@ -20,6 +23,7 @@ interface PersistedState {
   rightWidth: number
   leftVisible: boolean
   rightVisible: boolean
+  dualSideRatio?: number
   expandedChapters: string[]
   fontSize: number
   lineHeight: number
@@ -32,6 +36,9 @@ export const DEFAULT_LEFT_WIDTH = 288
 export const DEFAULT_RIGHT_WIDTH = 288
 export const MIN_LEFT_WIDTH = 252
 export const MIN_RIGHT_WIDTH = 224
+export const DEFAULT_DUAL_SIDE_RATIO = 0.36
+export const MIN_DUAL_SIDE_RATIO = 0.24
+export const MAX_DUAL_SIDE_RATIO = 0.65
 
 export const WIDTH_PRESET_PX: Record<ReaderWidthPreset, number> = {
   narrow: 640,
@@ -64,8 +71,20 @@ export function normalizeRoutePath(raw: string): string {
   return p
 }
 
+function detectTier(w: number): ViewportTier {
+  if (w <= PHONE_MAX_WIDTH) return 'phone'
+  if (w <= DUAL_PANE_MAX_WIDTH) return 'dual'
+  return 'desktop'
+}
+
 // Singleton shared reactive state across workbench components
-const isMobile = ref(false)
+const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1280)
+const viewportTier = computed<ViewportTier>(() => detectTier(viewportWidth.value))
+const isMobile = computed(() => viewportTier.value === 'phone')
+const isDual = computed(() => viewportTier.value === 'dual')
+const isDesktop = computed(() => viewportTier.value === 'desktop')
+const dualSide = ref<DualActiveSide>('left')
+const dualSideRatio = ref(DEFAULT_DUAL_SIDE_RATIO)
 const mobileDrawerOpen = ref(false)
 const mobileSheetDetent = ref<MobileSheetDetent>('docked')
 
@@ -83,6 +102,9 @@ const leftWidth = ref(DEFAULT_LEFT_WIDTH)
 const rightWidth = ref(DEFAULT_RIGHT_WIDTH)
 const leftVisible = ref(true)
 const rightVisible = ref(true)
+
+const leftShown = computed(() => (isDual.value ? dualSide.value === 'left' : leftVisible.value))
+const rightShown = computed(() => (isDual.value ? dualSide.value === 'right' : rightVisible.value))
 
 const expandedChapters = ref<string[]>(novelManifest.chapters.map((c) => c.id))
 const activeTileFolderId = ref<string | null>(null)
@@ -105,21 +127,27 @@ let mediaWatcherAttached = false
 let jumpNonce = 0
 
 function initViewportWatcher() {
-  if (mediaWatcherAttached || typeof window === 'undefined' || !window.matchMedia) return
+  if (mediaWatcherAttached || typeof window === 'undefined') return
   mediaWatcherAttached = true
-  const mq = window.matchMedia(MOBILE_MEDIA_QUERY)
   const sync = () => {
-    const nextMobile = mq.matches
-    if (isMobile.value !== nextMobile) {
-      isMobile.value = nextMobile
-      if (nextMobile) {
+    const prevTier = viewportTier.value
+    viewportWidth.value = window.innerWidth
+    const nextTier = viewportTier.value
+    if (prevTier !== nextTier) {
+      if (nextTier !== 'phone') {
         mobileDrawerOpen.value = false
         mobileSheetDetent.value = 'docked'
       }
+      if (nextTier === 'dual' && prevTier === 'desktop') {
+        // Carry active side into dual [1-2] <-> [2-3] layout
+        if (leftVisible.value) dualSide.value = 'left'
+        else if (rightVisible.value) dualSide.value = 'right'
+        else dualSide.value = 'none'
+      }
     }
   }
-  isMobile.value = mq.matches
-  mq.addEventListener('change', sync)
+  sync()
+  window.addEventListener('resize', sync, { passive: true })
 }
 
 function persistState() {
@@ -132,6 +160,7 @@ function persistState() {
     rightWidth: rightWidth.value,
     leftVisible: leftVisible.value,
     rightVisible: rightVisible.value,
+    dualSideRatio: dualSideRatio.value,
     expandedChapters: expandedChapters.value,
     fontSize: fontSize.value,
     lineHeight: lineHeight.value,
@@ -174,6 +203,13 @@ function hydrateState() {
     }
     if (typeof parsed.rightVisible === 'boolean') {
       rightVisible.value = parsed.rightVisible
+    }
+    if (
+      typeof parsed.dualSideRatio === 'number' &&
+      parsed.dualSideRatio >= MIN_DUAL_SIDE_RATIO &&
+      parsed.dualSideRatio <= MAX_DUAL_SIDE_RATIO
+    ) {
+      dualSideRatio.value = parsed.dualSideRatio
     }
     if (Array.isArray(parsed.expandedChapters)) {
       expandedChapters.value = parsed.expandedChapters
@@ -382,6 +418,15 @@ export function useWorkbenchState() {
       mobileDrawerOpen.value = true
       return
     }
+    if (isDual.value) {
+      if (activitySection.value === section && dualSide.value === 'left') {
+        dualSide.value = 'none'
+      } else {
+        activitySection.value = section
+        dualSide.value = 'left'
+      }
+      return
+    }
     if (activitySection.value === section && leftVisible.value) {
       leftVisible.value = false
     } else {
@@ -397,6 +442,10 @@ export function useWorkbenchState() {
       if (mobileDrawerOpen.value) {
         mobileSheetDetent.value = 'docked'
       }
+      return
+    }
+    if (isDual.value) {
+      dualSide.value = dualSide.value === 'left' ? 'none' : 'left'
       return
     }
     leftVisible.value = !leftVisible.value
@@ -430,7 +479,16 @@ export function useWorkbenchState() {
       toggleMobileSheet()
       return
     }
+    if (isDual.value) {
+      dualSide.value = dualSide.value === 'right' ? 'none' : 'right'
+      return
+    }
     rightVisible.value = !rightVisible.value
+    persistState()
+  }
+
+  function setDualSideRatio(r: number) {
+    dualSideRatio.value = Math.max(MIN_DUAL_SIDE_RATIO, Math.min(MAX_DUAL_SIDE_RATIO, r))
     persistState()
   }
 
@@ -447,8 +505,10 @@ export function useWorkbenchState() {
   function resetSplitLayout() {
     leftWidth.value = DEFAULT_LEFT_WIDTH
     rightWidth.value = DEFAULT_RIGHT_WIDTH
+    dualSideRatio.value = DEFAULT_DUAL_SIDE_RATIO
     leftVisible.value = true
     rightVisible.value = true
+    dualSide.value = 'left'
     persistState()
   }
 
@@ -521,7 +581,16 @@ export function useWorkbenchState() {
     DEFAULT_RIGHT_WIDTH,
     MIN_LEFT_WIDTH,
     MIN_RIGHT_WIDTH,
+    DEFAULT_DUAL_SIDE_RATIO,
+    viewportWidth,
+    viewportTier,
     isMobile,
+    isDual,
+    isDesktop,
+    dualSide,
+    dualSideRatio,
+    leftShown,
+    rightShown,
     mobileDrawerOpen,
     mobileSheetDetent,
     currentRoutePath,
@@ -565,6 +634,7 @@ export function useWorkbenchState() {
     toggleRightPanel,
     setLeftWidth,
     setRightWidth,
+    setDualSideRatio,
     resetSplitLayout,
     adjustFontSize,
     adjustLineHeight,

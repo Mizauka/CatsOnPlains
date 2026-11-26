@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import IconGlyph from './IconGlyph.vue'
+import { VlButton, VlIcon } from '@valance-ui/vue'
 import { useWorkbenchState } from '../composables/useWorkbenchState'
 import type { NovelChapter } from '../../data/novel-manifest'
 
@@ -29,9 +29,7 @@ function enterFolder(chapterId: string) {
 
 <template>
   <div class="explorer-tiles">
-    <!-- Breadcrumb now lives OUTSIDE scroll area in ExplorerPanel.vue! -->
     <Transition name="panel-fade" mode="out-in">
-      <!-- Root Level: Chapter Folder Tiles -->
       <div v-if="!currentFolder" key="folders" class="tiles-grid folders-grid">
         <div
           v-for="chapter in chapters"
@@ -55,17 +53,18 @@ function enterFolder(chapterId: string) {
             {{ chapter.sceneCount }} 幕 · {{ (chapter.wordCount / 1000).toFixed(1) }}k 字
           </div>
 
-          <button
-            class="quick-full-pill shape-pill"
+          <VlButton
+            size="xs"
+            shape="pill"
+            style="margin-top: 8px"
             title="直接打开本章全文"
             @click.stop="openDoc(chapter.fullPath)"
           >
             打开全文
-          </button>
+          </VlButton>
         </div>
       </div>
 
-      <!-- Inside Chapter Folder: Flattened Scene & Full-Text Document Tiles -->
       <div v-else :key="currentFolder.id" class="tiles-grid">
         <button
           v-for="item in currentFolder.items"
@@ -83,7 +82,7 @@ function enterFolder(chapterId: string) {
             class="tile-glyph"
             :class="[item.kind, { activeMorph: currentRoutePath === item.path }]"
           >
-            <IconGlyph :name="item.kind === 'full' ? 'book' : 'doc'" :size="20" />
+            <VlIcon :name="item.kind === 'full' ? 'book' : 'doc'" :size="20" />
             <span v-if="openSet.has(item.path)" class="tile-open-dot shape-circle" />
           </div>
           <div class="tile-title">{{ item.shortTitle }}</div>
@@ -129,10 +128,6 @@ function enterFolder(chapterId: string) {
   }
 }
 
-.tile-card:active {
-  background-color: var(--bg-hover);
-}
-
 .tile-card.active {
   background-color: var(--accent-primary-soft);
 }
@@ -159,7 +154,6 @@ function enterFolder(chapterId: string) {
   background-color: var(--accent-secondary);
 }
 
-/* Geometric Folder Graphic */
 .folder-graphic {
   width: 64px;
   margin-bottom: 8px;
@@ -202,7 +196,6 @@ function enterFolder(chapterId: string) {
   line-height: 1.25;
 }
 
-/* Flattened Icon Badge — M3 Expressive Morph: Pure square -> Pure circle on active */
 .tile-glyph {
   position: relative;
   width: 38px;
@@ -275,28 +268,5 @@ function enterFolder(chapterId: string) {
   font-size: var(--ui-font-sm);
   color: var(--text-muted);
   font-variant-numeric: tabular-nums;
-}
-
-.quick-full-pill {
-  margin-top: 8px;
-  padding: 3px 11px;
-  font-size: var(--ui-font-sm);
-  font-weight: 700;
-  background-color: var(--bg-chip);
-  color: var(--text-primary);
-  white-space: nowrap;
-  transition: background-color 0.16s var(--ease-standard), color 0.16s var(--ease-standard);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .quick-full-pill:hover {
-    background-color: var(--accent-primary);
-    color: var(--accent-primary-ink);
-  }
-}
-
-.quick-full-pill:active {
-  background-color: var(--accent-primary);
-  color: var(--accent-primary-ink);
 }
 </style>

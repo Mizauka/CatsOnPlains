@@ -1,8 +1,15 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import IconGlyph from './IconGlyph.vue'
-import CustomScrollArea from './CustomScrollArea.vue'
-import SlidingSegmentedControl, { type SegmentOption } from './SlidingSegmentedControl.vue'
+import {
+  VlAccordion,
+  VlBadge,
+  VlButton,
+  VlIcon,
+  VlIconButton,
+  VlScrollArea,
+  VlSegmentedControl,
+  type SegmentOption,
+} from '@valance-ui/vue'
 import ExplorerTree from './ExplorerTree.vue'
 import ExplorerTiles from './ExplorerTiles.vue'
 import SearchPanel from './SearchPanel.vue'
@@ -46,11 +53,10 @@ function goTileRoot() {
     <Transition name="panel-fade" mode="out-in">
       <!-- SECTION 1: Flattened Explorer -->
       <div v-if="activitySection === 'explorer'" key="explorer" class="explorer-panel shape-rect">
-        <!-- Row 1: Panel Header with Sliding Orange Indicator -->
         <div class="panel-header shape-rect">
           <span class="panel-title">资源管理器</span>
 
-          <SlidingSegmentedControl
+          <VlSegmentedControl
             :model-value="explorerViewMode"
             :options="viewOptions"
             size="md"
@@ -60,18 +66,27 @@ function goTileRoot() {
           />
         </div>
 
-        <!-- Row 2: Fixed 34px Context / Breadcrumb Bar OUTSIDE Scroll Area -->
         <div class="context-bar shape-rect">
           <template v-if="explorerViewMode === 'tree'">
             <span class="context-label">章节目录</span>
             <div class="context-tools">
               <span class="context-meta">{{ manifest.totalChapters }} 章 · {{ manifest.totalScenes }} 幕</span>
-              <button class="tool-icon-btn" title="全部展开" @click="expandAllChapters">
-                <IconGlyph name="expand" :size="13" />
-              </button>
-              <button class="tool-icon-btn" title="全部折叠" @click="collapseAllChapters">
-                <IconGlyph name="collapse" :size="13" />
-              </button>
+              <VlIconButton
+                icon="expand"
+                size="xs"
+                surface="transparent"
+                morph-on-hover
+                title="全部展开"
+                @click="expandAllChapters"
+              />
+              <VlIconButton
+                icon="collapse"
+                size="xs"
+                surface="transparent"
+                morph-on-hover
+                title="全部折叠"
+                @click="collapseAllChapters"
+              />
             </div>
           </template>
 
@@ -83,67 +98,61 @@ function goTileRoot() {
                 <span class="crumb-active">{{ currentTileFolder.title }}</span>
               </template>
             </div>
-            <button
+            <VlButton
               v-if="currentTileFolder"
-              class="back-pill shape-pill"
+              size="xs"
+              shape="pill"
+              icon="arrow-left"
               @click="goTileRoot"
             >
-              <IconGlyph name="arrow-left" :size="11" />
-              <span>返回</span>
-            </button>
+              返回
+            </VlButton>
             <span v-else class="context-meta">{{ manifest.totalChapters }} 章</span>
           </template>
         </div>
 
-        <!-- Scrollable List ONLY -->
-        <CustomScrollArea class="explorer-scroll">
+        <VlScrollArea class="explorer-scroll">
           <div class="explorer-list-inner">
             <Transition name="panel-fade" mode="out-in">
               <ExplorerTree v-if="explorerViewMode === 'tree'" key="tree" :chapters="manifest.chapters" />
               <ExplorerTiles v-else key="tiles" :chapters="manifest.chapters" />
             </Transition>
           </div>
-        </CustomScrollArea>
+        </VlScrollArea>
 
-        <!-- Flattened Outline Section with Smooth Nonlinear Downward Expand Animation! -->
         <div class="outline-section shape-rect">
-          <button
-            class="outline-header shape-rect"
-            :aria-expanded="outlineOpen"
-            @click="toggleOutlineOpen"
+          <VlAccordion
+            :model-value="outlineOpen"
+            title="大纲"
+            surface="surface"
+            @update:model-value="toggleOutlineOpen"
           >
-            <span class="outline-chevron" :class="{ rotated: outlineOpen }">
-              <IconGlyph name="chevron-right" :size="13" />
-            </span>
-            <span class="outline-title">大纲</span>
-            <span v-if="activeDoc" class="outline-count shape-pill">
-              {{ activeDoc.outline.length }}
-            </span>
-          </button>
+            <template #header-right>
+              <VlBadge v-if="activeDoc" tone="primary" size="xs">
+                {{ activeDoc.outline.length }}
+              </VlBadge>
+            </template>
 
-          <div class="outline-collapse" :class="{ open: outlineOpen }">
-            <div class="outline-collapse-inner">
-              <CustomScrollArea class="outline-scroll">
-                <div class="outline-list">
-                  <template v-if="activeDoc && activeDoc.outline.length > 0">
-                    <button
-                      v-for="heading in activeDoc.outline"
-                      :key="heading.id"
-                      class="outline-item shape-rect"
-                      :tabindex="outlineOpen ? 0 : -1"
-                      @click="emit('jump-outline', heading.id)"
-                    >
-                      <span class="outline-dot shape-circle" />
-                      <span class="outline-text">{{ heading.title }}</span>
-                    </button>
-                  </template>
-                  <div v-else class="outline-empty">
-                    打开任意章节以查看节选大纲
-                  </div>
+            <VlScrollArea class="outline-scroll">
+              <div class="outline-list">
+                <template v-if="activeDoc && activeDoc.outline.length > 0">
+                  <button
+                    v-for="heading in activeDoc.outline"
+                    :key="heading.id"
+                    class="outline-item shape-rect"
+                    :tabindex="outlineOpen ? 0 : -1"
+                    @click="emit('jump-outline', heading.id)"
+                  >
+                    <span class="outline-dot shape-circle" />
+                    <span class="outline-text">{{ heading.title }}</span>
+                  </button>
+                </template>
+                <div v-else class="outline-empty">
+                  打开任意章节以查看节选大纲
                 </div>
-              </CustomScrollArea>
-            </div>
-          </div>
+              </div>
+            </VlScrollArea>
+          </VlAccordion>
         </div>
       </div>
 
@@ -227,34 +236,6 @@ function goTileRoot() {
   font-variant-numeric: tabular-nums;
 }
 
-.tool-icon-btn {
-  width: 22px;
-  height: 22px;
-  border-radius: 0%;
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  color: var(--text-secondary);
-  transition:
-    border-radius 0.28s var(--ease-nonlinear),
-    background-color 0.2s var(--ease-nonlinear),
-    color 0.2s var(--ease-nonlinear);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .tool-icon-btn:hover {
-    border-radius: 50%;
-    background-color: var(--accent-primary);
-    color: var(--accent-primary-ink);
-  }
-}
-
-.tool-icon-btn:active {
-  border-radius: 50%;
-  background-color: var(--accent-primary);
-  color: var(--accent-primary-ink);
-}
-
 .crumb-row {
   display: flex;
   align-items: center;
@@ -278,10 +259,6 @@ function goTileRoot() {
   }
 }
 
-.crumb-root-btn:active {
-  color: var(--accent-primary-text);
-}
-
 .crumb-sep {
   font-size: var(--ui-font-md);
   color: var(--text-muted);
@@ -298,33 +275,6 @@ function goTileRoot() {
   line-height: 1;
 }
 
-.back-pill {
-  height: 24px;
-  display: inline-flex;
-  align-items: center;
-  gap: 4px;
-  padding: 0 10px;
-  font-size: var(--ui-font-sm);
-  font-weight: 700;
-  background-color: var(--bg-elevated);
-  color: var(--text-primary);
-  white-space: nowrap;
-  flex-shrink: 0;
-  transition: background-color 0.18s var(--ease-nonlinear), color 0.18s var(--ease-nonlinear);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .back-pill:hover {
-    background-color: var(--accent-primary);
-    color: var(--accent-primary-ink);
-  }
-}
-
-.back-pill:active {
-  background-color: var(--accent-primary);
-  color: var(--accent-primary-ink);
-}
-
 .explorer-scroll {
   flex: 1;
   min-height: 0;
@@ -334,87 +284,12 @@ function goTileRoot() {
   padding: var(--pane-pad);
 }
 
-/* Flattened Outline Section with Nonlinear Downward Expand Animation */
 .outline-section {
   border-top: 1px solid var(--divider-hairline);
   background-color: var(--bg-surface);
   display: flex;
   flex-direction: column;
   flex-shrink: 0;
-}
-
-.outline-header {
-  height: var(--ui-row-height);
-  min-height: var(--ui-row-height);
-  width: 100%;
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  padding: 0 var(--pane-pad);
-  background-color: transparent;
-  font-size: var(--ui-font-sm);
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  color: var(--text-secondary);
-  transition: background-color 0.18s var(--ease-nonlinear), color 0.18s var(--ease-nonlinear);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .outline-header:hover {
-    background-color: var(--bg-hover);
-    color: var(--text-primary);
-  }
-}
-
-.outline-header:active {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
-}
-
-.outline-chevron {
-  display: inline-flex;
-  align-items: center;
-  transition: transform 0.3s var(--ease-nonlinear), color 0.2s var(--ease-nonlinear);
-}
-
-.outline-chevron.rotated {
-  transform: rotate(90deg);
-  color: var(--accent-primary-text);
-}
-
-.outline-title {
-  flex: 1;
-  text-align: left;
-  white-space: nowrap;
-}
-
-.outline-count {
-  font-size: 10px;
-  font-weight: 700;
-  padding: 1px 8px;
-  background-color: var(--accent-primary-soft);
-  color: var(--accent-primary-text);
-}
-
-.outline-collapse {
-  display: grid;
-  grid-template-rows: 0fr;
-  opacity: 0;
-  transition:
-    grid-template-rows 0.34s var(--ease-nonlinear),
-    opacity 0.24s var(--ease-nonlinear);
-}
-
-.outline-collapse.open {
-  grid-template-rows: 1fr;
-  opacity: 1;
-}
-
-.outline-collapse-inner {
-  min-height: 0;
-  overflow: hidden;
-  display: flex;
-  flex-direction: column;
 }
 
 .outline-scroll {
@@ -426,12 +301,6 @@ function goTileRoot() {
   flex-direction: column;
   padding: 2px var(--pane-pad) var(--pane-pad) var(--pane-pad);
   gap: 2px;
-  transform: translateY(-6px);
-  transition: transform 0.34s var(--ease-nonlinear);
-}
-
-.outline-collapse.open .outline-list {
-  transform: translateY(0);
 }
 
 .outline-item {
@@ -453,11 +322,6 @@ function goTileRoot() {
     background-color: var(--bg-hover);
     color: var(--text-primary);
   }
-}
-
-.outline-item:active {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
 }
 
 .outline-dot {

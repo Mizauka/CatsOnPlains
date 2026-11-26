@@ -1,10 +1,17 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
 import { Content } from 'vitepress'
+import {
+  VlBadge,
+  VlEmptyState,
+  VlIcon,
+  VlProgress,
+  VlScrollArea,
+  VlSegmentedControl,
+  useWidthTransition,
+  type SegmentOption,
+} from '@valance-ui/vue'
 import TabBar from './TabBar.vue'
-import IconGlyph from './IconGlyph.vue'
-import CustomScrollArea from './CustomScrollArea.vue'
-import SlidingSegmentedControl, { type SegmentOption } from './SlidingSegmentedControl.vue'
 import {
   useWorkbenchState,
   WIDTH_PRESET_PX,
@@ -37,10 +44,9 @@ const {
   setReadingProgressForPath,
 } = useWorkbenchState()
 
-const scrollAreaRef = ref<InstanceType<typeof CustomScrollArea> | null>(null)
-const isWidthMorphing = ref(false)
+const scrollAreaRef = ref<InstanceType<typeof VlScrollArea> | null>(null)
+const { isWidthMorphing, runWidthTransition } = useWidthTransition()
 
-// Lock preventing outgoing chapter's scroll/metrics events from polluting the incoming chapter!
 let isSwappingDoc = false
 let mountedDocPath: string | null = null
 
@@ -77,7 +83,6 @@ function updateReadingProgress(el?: HTMLElement | null) {
   if (isSwappingDoc) return
   const vp = el ?? getScroller()
   if (!vp || !activeDoc.value) return
-  // Strictly ensure the DOM currently mounted belongs to currentRoutePath
   if (mountedDocPath !== currentRoutePath.value) return
   computeAndRecordProgress(currentRoutePath.value, vp)
 }
@@ -132,81 +137,19 @@ function restoreScrollSync(targetPath: string, instantJump = false) {
 }
 
 function onDocEnter() {
-  // Runs synchronously right as the new <article> is mounted (at opacity: 0, before first paint!)
-  // so vp.scrollTop & scrollbar thumb are already in exact position on frame 0 — zero delayed jump!
   restoreScrollSync(currentRoutePath.value, true)
 }
 
-// KDE / Win11-style Snapshot Clip + Crossfade Transition for Column Width (Zero Text Reflow Flicker!)
 function handleWidthTransition(nextPreset: ReaderWidthPreset, commit: () => void) {
-  const vp = getScroller()
-  const canTransition =
-    typeof document !== 'undefined' && typeof document.startViewTransition === 'function'
-  const reducedMotion =
-    typeof window !== 'undefined' &&
-    window.matchMedia &&
-    window.matchMedia('(prefers-reduced-motion: reduce)').matches
-
-  if (!vp || !activeDoc.value || !canTransition || reducedMotion) {
-    commit()
-    nextTick(() => {
-      scrollAreaRef.value?.syncMetrics()
-      updateReadingProgress(vp)
-    })
-    return
-  }
-
-  // 1. Capture the current reading paragraph anchor so user never loses their reading line
-  const vpRect = vp.getBoundingClientRect()
-  const paragraphs = Array.from(vp.querySelectorAll<HTMLElement>('.reader-prose p'))
-  let anchorIndex = -1
-  let anchorDeltaY = 0
-  for (let i = 0; i < paragraphs.length; i++) {
-    const r = paragraphs[i].getBoundingClientRect()
-    if (r.bottom > vpRect.top + 12) {
-      anchorIndex = i
-      anchorDeltaY = r.top - vpRect.top
-      break
-    }
-  }
-
-  // 2. Compute exact horizontal clip-path insets for old width -> new width inside viewport
-  const oldW = Math.min(vpRect.width, WIDTH_PRESET_PX[widthPreset.value])
-  const newW = Math.min(vpRect.width, WIDTH_PRESET_PX[nextPreset])
-  const fromInset = Math.max(0, Math.round((vpRect.width - oldW) / 2))
-  const toInset = Math.max(0, Math.round((vpRect.width - newW) / 2))
-
-  const root = document.documentElement
-  root.style.setProperty('--width-inset-from', `${fromInset}px`)
-  root.style.setProperty('--width-inset-to', `${toInset}px`)
-  root.dataset.vtKind = 'width'
-  isWidthMorphing.value = true
-
-  // Wait one micro-tick so view-transition-name: reader-column is active before snapshot capture
+  runWidthTransition(commit, {
+    getScroller,
+    getWidthPx: () => WIDTH_PRESET_PX[widthPreset.value],
+    getNextWidthPx: () => WIDTH_PRESET_PX[nextPreset],
+    paragraphSelector: '.reader-prose p',
+  })
   nextTick(() => {
-    const transition = document.startViewTransition(async () => {
-      commit()
-      await nextTick()
-      // Restore reading anchor paragraph position in the new layout before new snapshot is captured
-      if (anchorIndex >= 0) {
-        const nextParas = vp.querySelectorAll<HTMLElement>('.reader-prose p')
-        const anchorEl = nextParas[anchorIndex]
-        if (anchorEl) {
-          const newVpTop = vp.getBoundingClientRect().top
-          const newAnchorTop = anchorEl.getBoundingClientRect().top
-          vp.scrollTop += newAnchorTop - (newVpTop + anchorDeltaY)
-        }
-      }
-      scrollAreaRef.value?.syncMetrics()
-      updateReadingProgress(vp)
-    })
-
-    transition.finished.finally(() => {
-      isWidthMorphing.value = false
-      if (root.dataset.vtKind === 'width') {
-        delete root.dataset.vtKind
-      }
-    })
+    scrollAreaRef.value?.syncMetrics()
+    updateReadingProgress(getScroller())
   })
 }
 
@@ -225,7 +168,6 @@ watch(currentRoutePath, (nextPath, prevPath) => {
   if (prevPath && prevVp && mountedDocPath === prevPath) {
     computeAndRecordProgress(prevPath, prevVp)
   }
-  // Lock progress writes while out-in transition swaps old & new article DOM
   isSwappingDoc = true
   mountedDocPath = null
 })
@@ -240,7 +182,7 @@ watch(
     requestAnimationFrame(() => {
       performPendingParagraphJump()
     })
-  }
+  },
 )
 
 function scrollToHeading(headingId: string) {
@@ -258,7 +200,6 @@ function scrollToHeading(headingId: string) {
 
 function navigatePager(path: string) {
   saveCurrentScroll()
-  // Pager ("上一节 / 下一节") always starts cleanly at the top of the target scene
   openDoc(path, undefined, { resetScroll: true })
 }
 
@@ -269,10 +210,8 @@ defineExpose({
 
 <template>
   <main class="reader-panel shape-rect" :class="{ 'is-mobile': isMobile }" aria-label="小说阅读器">
-    <!-- Multi-Tab Bar (Desktop Only — removed on mobile!) -->
     <TabBar v-if="!isMobile" @before-switch="saveCurrentScroll" />
 
-    <!-- Breadcrumb & Column Width Bar -->
     <div v-if="activeDoc" class="breadcrumb-bar shape-rect">
       <div class="breadcrumbs">
         <span v-if="!isMobile" class="crumb-root">{{ manifest.bookTitle }}</span>
@@ -280,7 +219,7 @@ defineExpose({
         <span class="crumb-chapter">{{ activeDoc.chapterTitle }}</span>
         <span class="crumb-sep">/</span>
         <span class="crumb-doc">{{ activeDoc.shortTitle }}</span>
-        <span class="crumb-ver shape-pill">{{ activeDoc.version }}</span>
+        <VlBadge tone="secondary" size="xs">{{ activeDoc.version }}</VlBadge>
       </div>
 
       <div class="reader-toolbar">
@@ -288,7 +227,7 @@ defineExpose({
           {{ activeDoc.wordCount.toLocaleString() }} 字 · 约 {{ activeDoc.readingMinutes }} 分钟
         </span>
 
-        <SlidingSegmentedControl
+        <VlSegmentedControl
           v-if="!isMobile"
           :model-value="widthPreset"
           :options="widthOptions"
@@ -300,13 +239,9 @@ defineExpose({
       </div>
     </div>
 
-    <!-- Sharp 3px Reading Progress Bar (Per-Scene Independent) -->
-    <div v-if="activeDoc" class="progress-track shape-rect">
-      <div class="progress-fill shape-rect" :style="{ width: `${readingProgress}%` }" />
-    </div>
+    <VlProgress v-if="activeDoc" :value="readingProgress" :height="3" />
 
-    <!-- Scrollable Reader Canvas with WinUI Animated Scrollbar -->
-    <CustomScrollArea
+    <VlScrollArea
       ref="scrollAreaRef"
       class="reader-scroll"
       :class="{ 'vt-width-target': isWidthMorphing }"
@@ -325,11 +260,11 @@ defineExpose({
           }"
         >
           <div class="article-meta-bar shape-rect">
-            <span class="meta-badge chapter shape-pill">{{ activeDoc.chapterTitle }}</span>
-            <span class="meta-badge kind shape-pill" :class="activeDoc.kind">
+            <VlBadge tone="primary" variant="solid" size="md">{{ activeDoc.chapterTitle }}</VlBadge>
+            <VlBadge :tone="activeDoc.kind === 'full' ? 'secondary' : 'primary'" size="md">
               {{ activeDoc.kind === 'full' ? '本章全文' : `第 ${activeDoc.sceneIndex} 幕` }}
-            </span>
-            <span class="meta-badge version shape-pill">修订 {{ activeDoc.version }}</span>
+            </VlBadge>
+            <VlBadge tone="neutral" size="md">修订 {{ activeDoc.version }}</VlBadge>
           </div>
 
           <div class="reader-prose" :class="`font-${fontFamily}`">
@@ -342,7 +277,7 @@ defineExpose({
               class="pager-btn prev shape-pill"
               @click="navigatePager(adjacentDocs.prev.path)"
             >
-              <IconGlyph name="arrow-left" :size="14" />
+              <VlIcon name="arrow-left" :size="14" />
               <span class="pager-text">
                 <small>上一节</small>
                 <strong>{{ adjacentDocs.prev.chapterTitle }} · {{ adjacentDocs.prev.shortTitle }}</strong>
@@ -359,30 +294,22 @@ defineExpose({
                 <small>下一节</small>
                 <strong>{{ adjacentDocs.next.chapterTitle }} · {{ adjacentDocs.next.shortTitle }}</strong>
               </span>
-              <IconGlyph name="arrow-right" :size="14" />
+              <VlIcon name="arrow-right" :size="14" />
             </button>
           </nav>
         </article>
 
-        <!-- Minimal Flat Empty State -->
-        <div v-else key="empty-editor" class="empty-editor">
-          <div class="empty-mark" aria-hidden="true">
-            <span class="mark-lg shape-circle" />
-            <span class="mark-sm shape-circle" />
-          </div>
-          <div class="empty-heading">当前未打开任何章节</div>
-          <div class="empty-hint">从左侧资源管理器或展开搜索中选择任意章节即可打开阅读标签页。</div>
-          <button
-            v-if="firstScenePath"
-            class="empty-cta shape-pill"
-            @click="openDoc(firstScenePath, undefined, { resetScroll: true })"
-          >
-            <span>打开第0章 · 幕1 放出</span>
-            <IconGlyph name="arrow-right" :size="14" />
-          </button>
-        </div>
+        <VlEmptyState
+          v-else
+          key="empty-editor"
+          title="当前未打开任何章节"
+          description="从左侧资源管理器或展开搜索中选择任意章节即可打开阅读标签页。"
+          :cta-label="firstScenePath ? '打开第0章 · 幕1 放出' : undefined"
+          cta-icon="arrow-right"
+          @action="firstScenePath && openDoc(firstScenePath, undefined, { resetScroll: true })"
+        />
       </Transition>
-    </CustomScrollArea>
+    </VlScrollArea>
   </main>
 </template>
 
@@ -462,16 +389,6 @@ defineExpose({
   text-overflow: ellipsis;
 }
 
-.crumb-ver {
-  font-size: var(--ui-font-xs);
-  font-weight: 700;
-  padding: 2px 8px;
-  background-color: var(--accent-secondary-soft);
-  color: var(--accent-secondary-text);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
 .reader-toolbar {
   display: flex;
   align-items: center;
@@ -486,19 +403,6 @@ defineExpose({
   white-space: nowrap;
 }
 
-.progress-track {
-  height: 3px;
-  min-height: 3px;
-  width: 100%;
-  background-color: var(--bg-surface);
-}
-
-.progress-fill {
-  height: 100%;
-  background-color: var(--accent-primary);
-  transition: width 0.08s linear;
-}
-
 .reader-scroll {
   flex: 1;
   min-height: 0;
@@ -508,7 +412,6 @@ defineExpose({
   view-transition-name: reader-column;
 }
 
-/* No live max-width transition — width changes use KDE/Win11 snapshot clip + crossfade! */
 .reader-article {
   width: 100%;
   margin: 0 auto;
@@ -520,33 +423,6 @@ defineExpose({
   align-items: center;
   gap: 8px;
   margin-bottom: 20px;
-}
-
-.meta-badge {
-  font-size: var(--ui-font-sm);
-  font-weight: 700;
-  padding: 3px 11px;
-  white-space: nowrap;
-}
-
-.meta-badge.chapter {
-  background-color: var(--accent-primary);
-  color: var(--accent-primary-ink);
-}
-
-.meta-badge.kind.scene {
-  background-color: var(--accent-primary-soft);
-  color: var(--accent-primary-text);
-}
-
-.meta-badge.kind.full {
-  background-color: var(--accent-secondary-soft);
-  color: var(--accent-secondary-text);
-}
-
-.meta-badge.version {
-  background-color: var(--bg-surface);
-  color: var(--text-secondary);
 }
 
 .chapter-pager {
@@ -588,11 +464,6 @@ defineExpose({
   color: var(--accent-primary-ink);
 }
 
-.pager-btn:active small {
-  color: var(--accent-primary-ink);
-  opacity: 0.85;
-}
-
 .pager-text {
   display: flex;
   flex-direction: column;
@@ -616,72 +487,5 @@ defineExpose({
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-}
-
-.empty-editor {
-  min-height: 100%;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  text-align: center;
-  padding: 40px 24px;
-  gap: 12px;
-}
-
-.empty-mark {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 4px;
-}
-
-.mark-lg {
-  width: 24px;
-  height: 24px;
-  background-color: var(--accent-primary);
-}
-
-.mark-sm {
-  width: 14px;
-  height: 14px;
-  background-color: var(--accent-secondary);
-}
-
-.empty-heading {
-  font-size: 16px;
-  font-weight: 800;
-  color: var(--text-primary);
-}
-
-.empty-hint {
-  font-size: 13px;
-  line-height: 1.65;
-  color: var(--text-secondary);
-  max-width: 360px;
-}
-
-.empty-cta {
-  margin-top: 8px;
-  height: 36px;
-  padding: 0 20px;
-  display: inline-flex;
-  align-items: center;
-  gap: 8px;
-  font-size: 13px;
-  font-weight: 700;
-  background-color: var(--accent-primary);
-  color: var(--accent-primary-ink);
-  transition: background-color 0.2s var(--ease-nonlinear);
-}
-
-@media (hover: hover) and (pointer: fine) {
-  .empty-cta:hover {
-    background-color: var(--accent-primary-hover);
-  }
-}
-
-.empty-cta:active {
-  background-color: var(--accent-primary-hover);
 }
 </style>

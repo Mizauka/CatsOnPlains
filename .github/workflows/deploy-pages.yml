@@ -23,38 +23,56 @@ jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout repository
+      - name: Checkout CatsOnPlains
         uses: actions/checkout@v4
+        with:
+          path: CatsOnPlains
+
+      - name: Checkout ValanceUI sibling workspace
+        uses: actions/checkout@v4
+        with:
+          repository: Mizauka/ValanceUI
+          path: ValanceUI
 
       - name: Setup pnpm
         uses: pnpm/action-setup@v4
         with:
-          version: 12
+          version: 10
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: 22
           cache: pnpm
-          cache-dependency-path: Site/pnpm-lock.yaml
+          cache-dependency-path: |
+            ValanceUI/pnpm-lock.yaml
+            CatsOnPlains/Site/pnpm-lock.yaml
+
+      - name: Build @valance-ui/vue
+        working-directory: ValanceUI
+        run: |
+          pnpm install --frozen-lockfile
+          pnpm build:vue
 
       - name: Setup GitHub Pages
         uses: actions/configure-pages@v5
 
-      - name: Install dependencies
-        run: pnpm --dir Site install --frozen-lockfile
+      - name: Install Site dependencies
+        working-directory: CatsOnPlains/Site
+        run: pnpm install --frozen-lockfile
 
       - name: Sync chapters and build VitePress site
+        working-directory: CatsOnPlains/Site
         env:
           VITEPRESS_BASE: /${{ github.event.repository.name }}/
         run: |
-          pnpm --dir Site build
-          touch Site/src/.vitepress/dist/.nojekyll
+          pnpm build
+          touch src/.vitepress/dist/.nojekyll
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: Site/src/.vitepress/dist
+          path: CatsOnPlains/Site/src/.vitepress/dist
 
   deploy:
     environment:

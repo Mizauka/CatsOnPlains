@@ -57,6 +57,15 @@ export default defineConfig({
     },
   },
   vite: {
+    resolve: {
+      dedupe: ['vue'],
+    },
+    optimizeDeps: {
+      exclude: ['@valance-ui/vue'],
+    },
+    ssr: {
+      noExternal: ['@valance-ui/vue'],
+    },
     server: {
       host: '0.0.0.0',
       port: 5173,

@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { computed } from 'vue'
-import IconGlyph from './IconGlyph.vue'
+import { VlBadge, VlIcon } from '@valance-ui/vue'
 import { useWorkbenchState } from '../composables/useWorkbenchState'
 import type { NovelChapter, NovelDocItem } from '../../data/novel-manifest'
 
@@ -30,24 +30,22 @@ function handleDocClick(item: NovelDocItem) {
 <template>
   <div class="explorer-tree" role="tree" aria-label="章节树状列表">
     <div v-for="chapter in chapters" :key="chapter.id" class="tree-folder-group" role="treeitem">
-      <!-- Flat Folder Row -->
       <button
         class="tree-row folder-row shape-rect"
         :aria-expanded="isExpanded(chapter.id)"
         @click="toggleChapterExpanded(chapter.id)"
       >
         <span class="chevron-wrap" :class="{ rotated: isExpanded(chapter.id) }">
-          <IconGlyph name="chevron-right" :size="13" />
+          <VlIcon name="chevron-right" :size="13" />
         </span>
         <span class="folder-icon">
-          <IconGlyph :name="isExpanded(chapter.id) ? 'folder-open' : 'folder'" :size="15" />
+          <VlIcon :name="isExpanded(chapter.id) ? 'folder-open' : 'folder'" :size="15" />
         </span>
         <span class="row-label folder-label">{{ chapter.title }}</span>
-        <span class="version-badge shape-pill">{{ chapter.version }}</span>
+        <VlBadge tone="secondary" size="xs">{{ chapter.version }}</VlBadge>
         <span class="count-meta">{{ chapter.sceneCount }}幕</span>
       </button>
 
-      <!-- Smooth Nonlinear Downward Expand / Collapse Wrapper -->
       <div class="tree-collapse" :class="{ open: isExpanded(chapter.id) }" role="group">
         <div class="tree-collapse-inner">
           <div class="tree-children">
@@ -65,7 +63,7 @@ function handleDocClick(item: NovelDocItem) {
             >
               <span class="active-bar shape-rect" />
               <span class="file-icon" :class="item.kind">
-                <IconGlyph :name="item.kind === 'full' ? 'book' : 'doc'" :size="14" />
+                <VlIcon :name="item.kind === 'full' ? 'book' : 'doc'" :size="14" />
               </span>
               <span class="row-label">{{ item.shortTitle }}</span>
               <span
@@ -119,11 +117,6 @@ function handleDocClick(item: NovelDocItem) {
   }
 }
 
-.tree-row:active {
-  background-color: var(--bg-hover);
-  color: var(--text-primary);
-}
-
 .folder-row {
   font-weight: 700;
   color: var(--text-primary);
@@ -159,16 +152,6 @@ function handleDocClick(item: NovelDocItem) {
   text-overflow: ellipsis;
 }
 
-.version-badge {
-  font-size: var(--ui-font-xs);
-  font-weight: 700;
-  padding: 2px 8px;
-  background-color: var(--accent-secondary-soft);
-  color: var(--accent-secondary-text);
-  flex-shrink: 0;
-  white-space: nowrap;
-}
-
 .count-meta {
   font-size: var(--ui-font-sm);
   color: var(--text-muted);
@@ -177,7 +160,6 @@ function handleDocClick(item: NovelDocItem) {
   white-space: nowrap;
 }
 
-/* Smooth Nonlinear Downward List Expand/Collapse (CSS Grid 0fr <-> 1fr) */
 .tree-collapse {
   display: grid;
   grid-template-rows: 0fr;

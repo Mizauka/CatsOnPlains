@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@valance-ui/vue':
+        specifier: link:../../ValanceUI/packages/vue
+        version: link:../../ValanceUI/packages/vue
       vue:
         specifier: ^3.5.13
         version: 3.5.46(typescript@5.9.3)
