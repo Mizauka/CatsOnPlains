@@ -1,6 +1,6 @@
 <script setup lang="ts">
 import { ref, computed, watch, nextTick, onMounted, onBeforeUnmount } from 'vue'
-import { Content } from 'vitepress'
+import { Content, useRoute as useVpRoute } from 'vitepress'
 import {
   VlBadge,
   VlEmptyState,
@@ -44,8 +44,17 @@ const {
   setReadingProgressForPath,
 } = useWorkbenchState()
 
+const vpRoute = useVpRoute()
 const scrollAreaRef = ref<InstanceType<typeof VlScrollArea> | null>(null)
 const { isWidthMorphing, runWidthTransition } = useWidthTransition()
+
+watch(
+  () => vpRoute.component,
+  async () => {
+    await nextTick()
+    restoreScrollSync(currentRoutePath.value, true)
+  },
+)
 
 let isSwappingDoc = false
 let mountedDocPath: string | null = null

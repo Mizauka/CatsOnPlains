@@ -1,5 +1,5 @@
 <script setup lang="ts">
-import { computed } from 'vue'
+import { computed, onMounted, ref } from 'vue'
 import { VlBadge, VlStatusBar } from '@valance-ui/vue'
 import { useThemeMode } from '../composables/useThemeMode'
 import { useWorkbenchState } from '../composables/useWorkbenchState'
@@ -14,7 +14,15 @@ const {
   explorerViewMode,
 } = useWorkbenchState()
 
+const isClientMounted = ref(false)
+onMounted(() => {
+  isClientMounted.value = true
+})
+
 const themeStatusLabel = computed(() => {
+  if (!isClientMounted.value) {
+    return `跟随系统 · 亮色 ${activeLightBgHex.value}`
+  }
   const hex = resolvedTheme.value === 'light' ? `亮色 ${activeLightBgHex.value}` : `暗色 ${activeDarkBgHex.value}`
   return themePreference.value === 'system' ? `跟随系统 · ${hex}` : hex
 })

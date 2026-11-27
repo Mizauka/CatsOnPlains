@@ -78,7 +78,10 @@ function detectTier(w: number): ViewportTier {
 }
 
 // Singleton shared reactive state across workbench components
-const viewportWidth = ref(typeof window !== 'undefined' ? window.innerWidth : 1280)
+// Always initialize to desktop fallback width (1280) so VitePress SSR and client
+// initial hydration match deterministically; initViewportWatcher() syncs actual
+// viewport width inside ensureHydrated() on mount.
+const viewportWidth = ref(1280)
 const viewportTier = computed<ViewportTier>(() => detectTier(viewportWidth.value))
 const isMobile = computed(() => viewportTier.value === 'phone')
 const isDual = computed(() => viewportTier.value === 'dual')
@@ -125,10 +128,12 @@ let widthTransitionHandler: WidthTransitionHandler | null = null
 let hydrated = false
 let mediaWatcherAttached = false
 let jumpNonce = 0
+let onPhoneTierEnter: (() => void) | null = null
 
 function initViewportWatcher() {
   if (mediaWatcherAttached || typeof window === 'undefined') return
   mediaWatcherAttached = true
+  let firstSync = true
   const sync = () => {
     const prevTier = viewportTier.value
     viewportWidth.value = window.innerWidth
@@ -137,6 +142,8 @@ function initViewportWatcher() {
       if (nextTier !== 'phone') {
         mobileDrawerOpen.value = false
         mobileSheetDetent.value = 'docked'
+      } else if (!firstSync) {
+        onPhoneTierEnter?.()
       }
       if (nextTier === 'dual' && prevTier === 'desktop') {
         // Carry active side into dual [1-2] <-> [2-3] layout
@@ -145,6 +152,7 @@ function initViewportWatcher() {
         else dualSide.value = 'none'
       }
     }
+    firstSync = false
   }
   sync()
   window.addEventListener('resize', sync, { passive: true })
@@ -176,9 +184,10 @@ function persistState() {
 }
 
 function hydrateState() {
-  if (hydrated || typeof localStorage === 'undefined') return
+  if (hydrated) return
   hydrated = true
   initViewportWatcher()
+  if (typeof localStorage === 'undefined') return
   try {
     const raw = localStorage.getItem(STATE_STORAGE_KEY)
     if (!raw) return
@@ -243,6 +252,12 @@ export function useWorkbenchState() {
   const router = useRouter()
 
   const currentRoutePath = computed(() => normalizeRoutePath(route.path))
+  onPhoneTierEnter = () => {
+    const path = currentRoutePath.value
+    if (typeof window !== 'undefined' && allDocsByPath[path]) {
+      void router.go(window.location.href)
+    }
+  }
 
   const activeDoc = computed<NovelDocItem | null>(() => {
     return allDocsByPath[currentRoutePath.value] ?? null
@@ -284,10 +299,14 @@ export function useWorkbenchState() {
   })
 
   async function ensureHydrated() {
+    const wasMobile = isMobile.value
     hydrateState()
     const path = currentRoutePath.value
     if (allDocsByPath[path]) {
       syncRouteToTabs(path)
+      if (!wasMobile && isMobile.value && typeof window !== 'undefined') {
+        await router.go(window.location.href)
+      }
     } else if (path === '/') {
       const fallback =
         (lastActiveDocPath.value && allDocsByPath[lastActiveDocPath.value] ? lastActiveDocPath.value : null) ??
